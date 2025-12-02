@@ -175,15 +175,17 @@ const Home = () => {
               >
                 Serwis komputerowy i projekty ByteClinic
               </motion.p>
-              <motion.h1 
-                className="font-mono text-4xl md:text-7xl font-bold"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-              >
-                <span className="text-primary" style={{ textShadow: '0 0 8px hsl(var(--primary))' }}>ByteClinic</span>
-                <span className="block text-2xl md:text-5xl text-secondary mt-2" style={{ textShadow: '0 0 6px hsl(var(--secondary))' }}>Serwis, który ogarnia temat.</span>
-              </motion.h1>
+              <div className="inline-block bg-black/70 px-4 py-2 rounded-lg">
+                <motion.h1
+                  className="font-mono text-4xl md:text-7xl font-bold"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5 }}
+                >
+                  <span className="text-primary" style={{ textShadow: '0 0 8px hsl(var(--primary))' }}>ByteClinic</span>
+                  <span className="block text-2xl md:text-5xl text-secondary mt-2" style={{ textShadow: '0 0 6px hsl(var(--secondary))' }}>Serwis, który ogarnia temat.</span>
+                </motion.h1>
+              </div>
               <motion.p 
                 className="mt-4 md:mt-6 max-w-2xl mx-auto text-base md:text-xl text-foreground/90"
                 initial={{ opacity: 0, y: 20 }}

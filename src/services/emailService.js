@@ -184,45 +184,95 @@ const EMAIL_TEMPLATES = {
           <h1 style="margin: 0; font-size: 28px; font-weight: bold;">⏰ Przypomnienie</h1>
           <p style="margin: 10px 0 0 0; opacity: 0.9;">Masz dzisiaj wizytę w ByteClinic!</p>
         </div>
-        
+
         <div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
           <div style="text-align: center; margin-bottom: 30px;">
             <h2 style="margin: 0; color: #1e293b;">Szczegóły wizyty</h2>
             <p style="margin: 10px 0 0 0; color: #64748b;">Przypominamy o dzisiejszej wizycie</p>
           </div>
-          
+
           <div style="background-color: #fef3c7; padding: 20px; border-radius: 8px; margin: 20px 0;">
             <h3 style="margin: 0 0 15px 0; color: #92400e;">⏰ Jutro o:</h3>
             <p style="margin: 5px 0; font-size: 24px; font-weight: bold; color: #78350f; text-align: center;">${bookingData.time}</p>
             <p style="margin: 5px 0; color: #78350f; text-align: center;"><strong>${bookingData.date}</strong></p>
           </div>
-          
+
           <div style="background-color: #f1f5f9; padding: 20px; border-radius: 8px; margin: 20px 0;">
             <p style="margin: 5px 0;"><strong>Usługa:</strong> ${bookingData.service}</p>
             <p style="margin: 5px 0;"><strong>Numer rezerwacji:</strong> #${bookingData.bookingId}</p>
             <p style="margin: 5px 0;"><strong>Czas trwania:</strong> ${bookingData.duration} minut</p>
           </div>
-          
+
           <div style="background-color: #fef2f2; padding: 15px; border-radius: 8px; border-left: 4px solid #ef4444; margin: 20px 0;">
             <h4 style="margin: 0 0 10px 0; color: #991b1b;">📍 Informacje o wizycie</h4>
             <p style="margin: 5px 0; color: #7f1d1d;"><strong>Adres:</strong> [ADRES SERWISU - DO UZUPEŁNIENIA]</p>
             <p style="margin: 5px 0; color: #7f1d1d;"><strong>Zaparkuj przed budynkiem</strong></p>
             <p style="margin: 5px 0; color: #7f1d1d;"><strong>Prosimy o punktualne przybycie</strong></p>
           </div>
-          
+
           <div style="text-align: center; margin: 30px 0;">
-            <a href="tel:+48724316523" 
+            <a href="tel:+48724316523"
                style="display: inline-block; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; margin-right: 10px;">
               📞 Zadzwoń w razie pytań
             </a>
-            <a href="https://byteclinic.pl/sledzenie?ref=${bookingData.bookingId}" 
+            <a href="https://byteclinic.pl/sledzenie?ref=${bookingData.bookingId}"
                style="display: inline-block; border: 2px solid #3b82f6; color: #3b82f6; padding: 10px 20px; text-decoration: none; border-radius: 8px; font-weight: bold;">
               🔍 Śledź online
             </a>
           </div>
-          
+
           <div style="text-align: center; color: #64748b; margin-top: 30px;">
             <p style="margin: 0; font-size: 14px;">Do zobaczenia już niedługo!</p>
+            <p style="margin: 5px 0 0 0; font-size: 14px;">Zespół ByteClinic 🚀</p>
+          </div>
+        </div>
+      </div>
+    `
+  }),
+
+  emailConfirmation: (confirmationData) => ({
+    subject: `✅ Potwierdź swój adres e-mail - ByteClinic`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8fafc;">
+        <div style="background: linear-gradient(135deg, #10b981, #059669); padding: 30px; border-radius: 12px; text-align: center; color: white; margin-bottom: 30px;">
+          <h1 style="margin: 0; font-size: 28px; font-weight: bold;">ByteClinic</h1>
+          <p style="margin: 10px 0 0 0; opacity: 0.9;">Potwierdzenie rejestracji</p>
+        </div>
+
+        <div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h2 style="color: #1e293b; margin-bottom: 10px;">Witaj w ByteClinic!</h2>
+            <p style="color: #64748b; margin: 0;">Potwierdź swój adres e-mail, aby aktywować konto.</p>
+          </div>
+
+          <div style="background-color: #f1f5f9; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 5px 0;"><strong>E-mail:</strong> ${confirmationData.email}</p>
+            <p style="margin: 5px 0;"><strong>Data rejestracji:</strong> ${new Date().toLocaleDateString('pl-PL')}</p>
+          </div>
+
+          <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; border-left: 4px solid #f59e0b; margin: 20px 0;">
+            <h4 style="margin: 0 0 10px 0; color: #92400e;">🔐 Bezpieczeństwo</h4>
+            <p style="margin: 5px 0; color: #78350f;">Link potwierdzający jest ważny przez 24 godziny.</p>
+            <p style="margin: 5px 0; color: #78350f;">Jeśli nie rejestrowałeś się w ByteClinic, zignoruj tę wiadomość.</p>
+          </div>
+
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${confirmationData.confirmationUrl}"
+               style="display: inline-block; background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
+              ✅ Potwierdź adres e-mail
+            </a>
+          </div>
+
+          <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h4 style="margin: 0 0 10px 0; color: #334155;">📞 Potrzebujesz pomocy?</h4>
+            <p style="margin: 5px 0;">Jeśli przycisk nie działa, skopiuj i wklej poniższy link do przeglądarki:</p>
+            <p style="margin: 5px 0; word-break: break-all; color: #3b82f6; font-size: 14px;">${confirmationData.confirmationUrl}</p>
+            <p style="margin: 5px 0;">Telefon: <a href="tel:+48724316523" style="color: #3b82f6;">+48 724 316 523</a></p>
+            <p style="margin: 5px 0;">Email: <a href="mailto:kontakt@byteclinic.pl" style="color: #3b82f6;">kontakt@byteclinic.pl</a></p>
+          </div>
+
+          <div style="border-top: 1px solid #e2e8f0; padding-top: 20px; margin-top: 30px; text-align: center; color: #64748b;">
+            <p style="margin: 0;">Dziękujemy za rejestrację!</p>
             <p style="margin: 5px 0 0 0; font-size: 14px;">Zespół ByteClinic 🚀</p>
           </div>
         </div>
@@ -360,6 +410,10 @@ class EmailService {
 
   async sendAppointmentReminder(bookingData) {
     return this.sendEmail(bookingData.email, 'appointmentReminder', bookingData);
+  }
+
+  async sendEmailConfirmation(confirmationData) {
+    return this.sendEmail(confirmationData.email, 'emailConfirmation', confirmationData);
   }
 
   // Batch wysyłka (np. dla przypomnień)
