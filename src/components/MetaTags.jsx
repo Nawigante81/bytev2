@@ -16,7 +16,8 @@ const MetaTags = ({
   author,
   section,
   price,
-  currency = 'PLN'
+  currency = 'PLN',
+  fbAppId
 }) => {
   const currentUrl = url || (typeof window !== 'undefined' 
     ? `${window.location.origin}${window.location.pathname}`
@@ -37,6 +38,7 @@ const MetaTags = ({
       <meta property="og:site_name" content={siteName} />
       <meta property="og:url" content={currentUrl} />
       <meta property="og:locale" content={locale} />
+      {fbAppId && <meta property="fb:app_id" content={fbAppId} />}
       
       {/* Open Graph - Image details */}
       <meta property="og:image:secure_url" content={image} />
