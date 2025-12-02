@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>React App Test</title>
+    <style>
+        body { 
+            margin: 0; 
+            font-family: Arial, sans-serif; 
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .container {
+            text-align: center;
+            padding: 2rem;
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+        }
+        button {
+            padding: 1rem 2rem;
+            font-size: 1.2rem;
+            background: white;
+            color: #333;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 1rem;
+        }
+        button:hover {
+            background: #f0f0f0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 App Debug Test</h1>
+        <p>This is a simple HTML test page</p>
+        <button onclick="testReactApp()">Test React App</button>
+        <button onclick="window.location.href='http://localhost:3000'">Go to React App</button>
+        <div id="results" style="margin-top: 2rem; text-align: left; background: rgba(0,0,0,0.5); padding: 1rem; border-radius: 5px; display: none;"></div>
+    </div>
+
+    <script>
+        function testReactApp() {
+            const results = document.getElementById('results');
+            results.style.display = 'block';
+            results.innerHTML = '<h3>Testing React App...</h3>';
+            
+            fetch('http://localhost:3000')
+                .then(response => response.text())
+                .then(html => {
+                    results.innerHTML += `
+                        <h4>✅ Server Response:</h4>
+                        <p>Status: ${response?.status || 'OK'}</p>
+                        <p>HTML Length: ${html.length} characters</p>
+                        <details>
+                            <summary>View HTML Source</summary>
+                            <pre style="white-space: pre-wrap; font-size: 12px; max-height: 300px; overflow-y: auto;">${html}</pre>
+                        </details>
+                    `;
+                })
+                .catch(error => {
+                    results.innerHTML += `<h4>❌ Error:</h4><pre>${error}</pre>`;
+                });
+        }
+    </script>
+</body>
+</html>

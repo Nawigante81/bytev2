@@ -1,0 +1,18 @@
+{
+    "name": "ByteClinic",
+    "short_name": "ByteClinic",
+    "description": "Serwis komputerowy i IT Zgorzelec",
+    "icons": [
+        {
+            "src": "/logo.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ],
+    "theme_color": "#0a0f1a",
+    "background_color": "#0a0f1a",
+    "display": "standalone",
+    "start_url": "/",
+    "scope": "/"
+}
