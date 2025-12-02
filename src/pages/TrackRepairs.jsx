@@ -1,6 +1,6 @@
 import React from 'react';
-import { Helmet } from 'react-helmet-async';
 import PageTransition from '@/components/PageTransition';
+import MetaTags from '@/components/MetaTags';
 import SectionWrapper from '@/components/SectionWrapper';
 import SectionTitle from '@/components/SectionTitle';
 import RepairTracker from '@/components/RepairTracker';
@@ -21,10 +21,13 @@ import {
 const TrackRepairs = () => {
   return (
     <PageTransition>
-      <Helmet>
-        <title>Śledzenie napraw - ByteClinic</title>
-        <meta name="description" content="Śledź status swoich napraw online. Real-time monitoring postępu w serwisie ByteClinic." />
-      </Helmet>
+      <MetaTags
+        title="Śledzenie napraw - ByteClinic | Real-time monitoring postępu"
+        description="Śledź status swoich napraw online 24/7. Real-time monitoring postępu, zdjęcia z naprawy, powiadomienia SMS. Transparentność w serwisie ByteClinic Zgorzelec."
+        image="/images/glowne.webp"
+        url="https://www.byteclinic.pl/sledzenie-napraw"
+        type="website"
+      />
 
       <SectionWrapper>
         <SectionTitle 

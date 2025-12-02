@@ -2,7 +2,7 @@
 import React from 'react';
 import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
-import { Helmet } from 'react-helmet-async';
+import { Helmet, HelmetProvider } from 'react-helmet-async';
 
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
@@ -95,8 +95,9 @@ function App() {
   const location = useLocation();
 
   return (
-    <ErrorBoundary>
-    <div className="bg-background text-foreground font-sans flex flex-col min-h-screen relative">
+    <HelmetProvider>
+      <ErrorBoundary>
+      <div className="bg-background text-foreground font-sans flex flex-col min-h-screen relative">
       <a href="#main-content" className="skip-link">Pomiń do treści</a>
       <Helmet>
         <title>ByteClinic - Serwis, który ogarnia temat</title>
@@ -173,8 +174,9 @@ function App() {
       <StickyCTA />
       <CookieBanner />
       <Toaster />
-    </div>
-    </ErrorBoundary>
+      </div>
+      </ErrorBoundary>
+    </HelmetProvider>
   );
 }
 

@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
 import PageTransition from '@/components/PageTransition';
+import MetaTags from '@/components/MetaTags';
 import SectionTitle from '@/components/SectionTitle';
 import SectionWrapper from '@/components/SectionWrapper';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -51,10 +52,14 @@ const About = () => {
 
   return (
     <PageTransition>
-      <Helmet>
-        <title>O nas - ByteClinic</title>
-        <meta name="description" content="Poznaj ByteClinic - profesjonalny serwis komputerowy w Zgorzelcu. 5+ lat doświadczenia, setki zadowolonych klientów, pełna gwarancja." />
-      </Helmet>
+      <MetaTags
+        title="O nas - ByteClinic | Poznaj naszą historię"
+        description="Poznaj ByteClinic - profesjonalny serwis komputerowy w Zgorzelcu. 5+ lat doświadczenia, setki zadowolonych klientów, pełna gwarancja."
+        image="/images/glowne.webp"
+        url="https://www.byteclinic.pl/o-nas"
+        type="website"
+        canonical="https://www.byteclinic.pl/o-nas"
+      />
 
       {/* Hero Section */}
       <SectionWrapper className="py-12 md:py-20">

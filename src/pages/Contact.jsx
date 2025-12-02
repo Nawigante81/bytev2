@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import PageTransition from '@/components/PageTransition';
+import MetaTags from '@/components/MetaTags';
 import SectionTitle from '@/components/SectionTitle';
 import SectionWrapper from '@/components/SectionWrapper';
 import { Button } from '@/components/ui/button';
@@ -155,10 +156,14 @@ const Contact = () => {
 
   return (
     <PageTransition>
-      <Helmet>
-        <title>Kontakt - ByteClinic</title>
-        <meta name="description" content="Skontaktuj się z ByteClinic - profesjonalnym serwisem komputerowym w Zgorzelcu. Formularz kontaktowy, mapa, dane adresowe, godziny otwarcia." />
-      </Helmet>
+      <MetaTags
+        title="Kontakt - ByteClinic | Skontaktuj się z nami"
+        description="Skontaktuj się z ByteClinic - profesjonalnym serwisem komputerowym w Zgorzelcu. Formularz kontaktowy, mapa, dane adresowe, godziny otwarcia."
+        image="/images/glowne.webp"
+        url="https://www.byteclinic.pl/kontakt"
+        type="website"
+        canonical="https://www.byteclinic.pl/kontakt"
+      />
 
       {/* Hero Section */}
       <SectionWrapper className="py-12">

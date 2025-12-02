@@ -1,8 +1,8 @@
 import React from 'react';
-import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
 import { HardDrive, MemoryStick, Cpu, Power, Keyboard, Cable } from 'lucide-react';
 import PageTransition from '@/components/PageTransition';
+import MetaTags from '@/components/MetaTags';
 import ProductsList from '@/components/ProductsList';
 import HeroGallery from '@/components/HeroGallery';
 import galleryManifest from '@/generated/galleryManifest.json';
@@ -30,10 +30,13 @@ const Store = () => {
 
   return (
     <PageTransition>
-      <Helmet>
-        <title>Sklep komputerowy ByteClinic – części i akcesoria komputerowe Zgorzelec</title>
-        <meta name="description" content="Kup części komputerowe i akcesoria – SSD, RAM, zasilacze, myszki, klawiatury. ByteClinic Zgorzelec – profesjonalny serwis i sklep online." />
-      </Helmet>
+      <MetaTags
+        title="Sklep ByteClinic | Części komputerowe i akcesoria Zgorzelec"
+        description="Kup części komputerowe i akcesoria – SSD, RAM, zasilacze, myszki, klawiatury, kable. ByteClinic Zgorzelec – profesjonalny serwis i sklep online z gwarancją."
+        image="/images/glowne.webp"
+        url="https://www.byteclinic.pl/sklep"
+        type="website"
+      />
       <div className="space-y-16 md:space-y-24">
         {/* Hero Section */}
         <motion.section 

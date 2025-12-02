@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Helmet } from 'react-helmet-async';
 import PageTransition from '@/components/PageTransition';
+import MetaTags from '@/components/MetaTags';
 import SectionWrapper from '@/components/SectionWrapper';
 import SectionTitle from '@/components/SectionTitle';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -167,26 +167,13 @@ const Pricing = () => {
 
   return (
     <PageTransition>
-      <Helmet>
-        <title>Cennik — ByteClinic</title>
-        <meta name="description" content="Cennik usług serwisu ByteClinic: diagnoza, naprawa, odzyskiwanie danych, sieci, serwery. Ceny brutto — ostateczna wycena po diagnozie w Zgorzelcu." />
-        <script type="application/ld+json">{`
-          {
-            "@context": "https://schema.org",
-            "@type": "OfferCatalog",
-            "name": "Cennik — ByteClinic",
-            "itemListElement": [
-              ${priceRows.map((sec, i)=>`{"@type":"OfferCatalog","name":"${sec.section}","itemListElement":[${sec.items.map(it=>`{"@type":"Service","name":"${it.name}","offers":{"@type":"Offer","priceCurrency":"PLN","price":"${it.price.replace(/[^0-9]/g,'')||''}"}}`).join(',')}]}`).join(',')}
-            ]
-          }
-        `}</script>
-        <script type="application/ld+json">{`
-          {"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[
-            {"@type":"ListItem","position":1,"name":"Start","item":"/"},
-            {"@type":"ListItem","position":2,"name":"Cennik","item":"/cennik"}
-          ]}
-        `}</script>
-      </Helmet>
+      <MetaTags
+        title="Cennik - ByteClinic | Przejrzysty cennik usług serwisowych"
+        description="Cennik usług serwisu ByteClinic: diagnoza od 99 PLN, naprawa laptopów, odzyskiwanie danych, sieci, serwery. Ceny brutto, gwarancja 3-12 miesięcy w Zgorzelcu."
+        image="/images/glowne.webp"
+        url="https://www.byteclinic.pl/cennik"
+        type="website"
+      />
 
       {/* Hero Section */}
       <SectionWrapper className="py-12">

@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
 import { Button } from '@/components/ui/button';
+import MetaTags from '@/components/MetaTags';
 import SectionWrapper from '@/components/SectionWrapper';
 import SectionTitle from '@/components/SectionTitle';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -133,11 +134,15 @@ const Home = () => {
   return (
     <>
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-        <Helmet>
-          <title>ByteClinic - Strona Główna</title>
-          <meta name="description" content="Profesjonalny serwis komputerowy w Zgorzelcu. Naprawa laptopów, PC, odzyskiwanie danych, instalacje systemów. 5+ lat doświadczenia, 500+ zadowolonych klientów." />
-          <link rel="preload" href="/images/glowne.webp" as="image" type="image/webp" />
-        </Helmet>
+        <MetaTags
+          title="ByteClinic - Strona Główna | Serwis komputerowy Zgorzelec"
+          description="Profesjonalny serwis komputerowy w Zgorzelcu. Naprawa laptopów, PC, odzyskiwanie danych, instalacje systemów. 5+ lat doświadczenia, 500+ zadowolonych klientów."
+          image="/og.png"
+          url="https://www.byteclinic.pl/"
+          type="website"
+          canonical="https://www.byteclinic.pl/"
+        />
+        <link rel="preload" href="/images/glowne.webp" as="image" type="image/webp" />
 
         {/* Hero Section */}
         <header ref={heroRef} className="hero relative flex flex-col items-center justify-center text-center overflow-hidden min-h-[70vh] sm:min-h-[80vh] md:h-[100svh]">

@@ -1,6 +1,6 @@
 import React from 'react';
-import { Helmet } from 'react-helmet-async';
 import PageTransition from '@/components/PageTransition';
+import MetaTags from '@/components/MetaTags';
 import SectionWrapper from '@/components/SectionWrapper';
 import SectionTitle from '@/components/SectionTitle';
 import { Card, CardContent } from '@/components/ui/card';
@@ -11,10 +11,13 @@ import { Clock, CheckCircle, Phone } from 'lucide-react';
 const Booking = () => {
   return (
     <PageTransition>
-      <Helmet>
-        <title>Rezerwacja wizyty - ByteClinic</title>
-        <meta name="description" content="Zarezerwuj wizytę w serwisie ByteClinic. Szybka diagnoza, naprawy, konsultacje IT w Zgorzelcu." />
-      </Helmet>
+      <MetaTags
+        title="Rezerwacja wizyty - ByteClinic | Umów spotkanie online"
+        description="Zarezerwuj wizytę w serwisie ByteClinic w kilku kliknięciach. Szybka diagnoza, naprawy, konsultacje IT. Potwierdzenie SMS, elastyczne terminy w Zgorzelcu."
+        image="/images/glowne.webp"
+        url="https://www.byteclinic.pl/rezerwacja"
+        type="website"
+      />
 
       <SectionWrapper>
         <SectionTitle 

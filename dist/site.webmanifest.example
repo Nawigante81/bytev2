@@ -1,0 +1,150 @@
+{
+  "name": "ByteClinic - Serwis komputerowy i IT",
+  "short_name": "ByteClinic",
+  "description": "Profesjonalny serwis komputerowy w Zgorzelcu. Naprawa laptopów, PC, odzyskiwanie danych, instalacje systemów. 5+ lat doświadczenia.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0f1a",
+  "theme_color": "#0a0f1a",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "pl",
+  "categories": ["business", "productivity", "utilities", "technology"],
+  "screenshots": [
+    {
+      "src": "/screenshots/desktop-1280x720.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Widok desktop aplikacji ByteClinic - serwis komputerowy"
+    },
+    {
+      "src": "/screenshots/mobile-750x1334.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Widok mobilny aplikacji ByteClinic - serwis komputerowy"
+    }
+  ],
+  "icons": [
+    {
+      "src": "/icons/icon-72x72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-96x96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-128x128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-144x144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-152x152.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-384x384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Diagnoza online",
+      "short_name": "Diagnoza",
+      "description": "Rozpocznij diagnostykę online swojego sprzętu",
+      "url": "/diagnoza",
+      "icons": [
+        {
+          "src": "/icons/shortcut-diagnoza-96x96.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Śledzenie naprawy",
+      "short_name": "Śledzenie",
+      "description": "Sprawdź status swojej naprawy",
+      "url": "/sledzenie",
+      "icons": [
+        {
+          "src": "/icons/shortcut-sledzenie-96x96.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Rezerwacja wizyty",
+      "short_name": "Rezerwacja",
+      "description": "Umów wizytę w serwisie",
+      "url": "/rezerwacja",
+      "icons": [
+        {
+          "src": "/icons/shortcut-rezerwacja-96x96.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Kontakt",
+      "short_name": "Kontakt",
+      "description": "Skontaktuj się z nami",
+      "url": "/kontakt",
+      "icons": [
+        {
+          "src": "/icons/shortcut-kontakt-96x96.png",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ],
+  "related_applications": [
+    {
+      "platform": "webapp",
+      "url": "https://www.byteclinic.pl/manifest.json"
+    }
+  ],
+  "prefer_related_applications": false,
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
+  "file_handlers": [
+    {
+      "action": "/upload",
+      "accept": {
+        "image/*": [".png", ".jpg", ".jpeg", ".webp"]
+      }
+    }
+  ]
+}

@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
 import PageTransition from '@/components/PageTransition';
+import MetaTags from '@/components/MetaTags';
 import SectionTitle from '@/components/SectionTitle';
 import SectionWrapper from '@/components/SectionWrapper';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -328,10 +329,14 @@ const Services = () => {
 
   return (
     <PageTransition>
-      <Helmet>
-        <title>Usługi - ByteClinic</title>
-        <meta name="description" content="Pełna oferta usług serwisowych ByteClinic. Diagnoza, naprawa, optymalizacja, odzyskiwanie danych, sieci, serwery. Profesjonalny serwis w Zgorzelcu." />
-      </Helmet>
+      <MetaTags
+        title="Usługi - ByteClinic | Pełna oferta serwisowa"
+        description="Pełna oferta usług serwisowych ByteClinic. Diagnoza, naprawa, optymalizacja, odzyskiwanie danych, sieci, serwery. Profesjonalny serwis w Zgorzelcu."
+        image="/images/glowne.webp"
+        url="https://www.byteclinic.pl/uslugi"
+        type="website"
+        canonical="https://www.byteclinic.pl/uslugi"
+      />
 
       {/* Hero Section */}
       <SectionWrapper className="py-12">
