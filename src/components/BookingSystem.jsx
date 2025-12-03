@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { useBookingNotifications } from '@/hooks/useNotifications';
+import { supabase } from '@/lib/supabaseClient';
 
 // Symulacja dostępnych terminów
 const generateAvailableSlots = (date) => {
@@ -115,54 +116,50 @@ const BookingSystem = () => {
 
   const handleSubmit = async () => {
     setIsLoading(true);
-    
+
     try {
       const selectedServiceData = serviceTypes.find(s => s.id === selectedService);
-      
-      // Generuj krótsze ID dla bazy danych (max 20 znaków)
       const bookingId = 'BC-' + Math.random().toString(36).substr(2, 6).toUpperCase();
       const selectedDateData = availableDates.find(d => d.value === selectedDate);
-      
-      // Dane rezerwacji
+
       const bookingData = {
         bookingId,
         email: customerInfo.email,
         name: customerInfo.name,
-        date: selectedDateData.label || selectedDate,
+        date: selectedDateData?.label || selectedDate,
         time: selectedSlot,
-        service: selectedServiceData.name,
-        duration: selectedServiceData.duration,
-        price: selectedServiceData.price,
+        service: selectedServiceData?.name,
+        duration: selectedServiceData?.duration,
+        price: selectedServiceData?.price,
         device: customerInfo.device,
-        phone: customerInfo.phone
+        phone: customerInfo.phone,
+        description: customerInfo.description,
       };
-      
-      // Utwórz rezerwację przez Edge Function (omija RLS)
-      const bookingResponse = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-booking`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(bookingData)
+
+      const { data, error } = await supabase.functions.invoke('create-booking', {
+        body: bookingData,
       });
 
-      if (!bookingResponse.ok) {
-        const errorText = await bookingResponse.text();
-        throw new Error(`Błąd tworzenia rezerwacji: ${errorText}`);
+      if (error) {
+        console.error('Supabase function error:', error);
+        throw new Error(error.message || 'Błąd po stronie funkcji');
       }
 
-      const bookingResult = await bookingResponse.json();
-      console.log('✅ Rezerwacja utworzona:', bookingResult);
-      
+      console.log('✅ Rezerwacja utworzona:', data);
+
+      try {
+        completeBooking?.(bookingData);
+      } catch (completeError) {
+        console.warn('completeBooking rzucił błędem, ale rezerwacja jest OK:', completeError);
+      }
+
       setBookingConfirmed(true);
-      
     } catch (error) {
       console.error('Błąd rezerwacji:', error);
       toast({
-        variant: "destructive",
-        title: "Błąd rezerwacji",
-        description: "Wystąpił problem. Spróbuj ponownie lub zadzwoń do nas.",
+        variant: 'destructive',
+        title: 'Błąd rezerwacji',
+        description: 'Wystąpił problem. Spróbuj ponownie lub zadzwoń do nas.',
       });
     } finally {
       setIsLoading(false);
