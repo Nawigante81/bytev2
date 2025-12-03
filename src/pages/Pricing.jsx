@@ -10,20 +10,26 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useToast } from '@/components/ui/use-toast';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { 
   Clock, Star, CheckCircle, AlertCircle, Phone, Mail, 
-  Calculator, Shield, Award, Info, ArrowRight, MapPin 
+  Calculator, Shield, Award, Info, ArrowRight, MapPin, Loader2 
 } from 'lucide-react';
 
 const Pricing = () => {
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [contactOpen, setContactOpen] = useState(false);
   const [contactService, setContactService] = useState('');
   const [contactName, setContactName] = useState('');
   const [contactEmail, setContactEmail] = useState('');
   const [contactMsg, setContactMsg] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Wszystkie');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const nameRef = useRef(null);
 
   useEffect(() => {
@@ -36,6 +42,73 @@ const Pricing = () => {
   const openContact = (service) => {
     setContactService(service);
     setContactOpen(true);
+  };
+
+  const handleSubmitQuote = async () => {
+    if (!contactName.trim() || !contactEmail.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Błąd",
+        description: "Proszę wypełnić imię i nazwisko oraz email.",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      // Wyślij zapytanie do systemu powiadomień
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-system`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          template: 'repair_request',
+          data: {
+            name: contactName,
+            email: contactEmail,
+            phone: 'Nie podano',
+            device: contactService || 'Wycena indywidualna',
+            message: contactMsg || 'Zapytanie o wycenę z cennika',
+            id: 'QUOTE-' + Math.random().toString(36).substr(2, 9).toUpperCase()
+          }
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Błąd wysyłania zapytania');
+      }
+
+      const result = await response.json();
+      
+      if (result.success) {
+        toast({
+          title: "✅ Zapytanie wysłane",
+          description: "Dziękujemy! Skontaktujemy się z Tobą w ciągu 24h.",
+        });
+        
+        // Resetuj formularz
+        setContactName('');
+        setContactEmail('');
+        setContactMsg('');
+        setContactService('');
+        setContactOpen(false);
+      } else {
+        throw new Error('Błąd przetwarzania zapytania');
+      }
+      
+    } catch (error) {
+      console.error('Błąd wysyłania zapytania:', error);
+      toast({
+        variant: "destructive",
+        title: "Błąd wysyłania",
+        description: "Nie udało się wysłać zapytania. Spróbuj ponownie lub zadzwoń do nas.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const priceRows = [
@@ -309,11 +382,24 @@ const Pricing = () => {
                               </div>
                             </div>
                             <div className="flex flex-col gap-2 min-w-0 lg:min-w-48">
-                              <Button asChild className="w-full min-w-0">
-                                <a href="/kontakt" aria-label={`Umów wizytę: ${item.name}`}>
-                                  <Calculator className="w-4 h-4 mr-2" />
-                                  Umów wizytę
-                                </a>
+                              <Button 
+                                className="w-full min-w-0" 
+                                onClick={() => {
+                                  if (user) {
+                                    navigate('/kontakt');
+                                  } else {
+                                    navigate('/auth');
+                                    toast({
+                                      variant: "destructive",
+                                      title: "Wymagane logowanie",
+                                      description: "Aby umówić wizytę, musisz być zalogowany.",
+                                    });
+                                  }
+                                }}
+                                aria-label={`Umów wizytę: ${item.name}`}
+                              >
+                                <Calculator className="w-4 h-4 mr-2" />
+                                Umów wizytę
                               </Button>
                               <Button 
                                 variant="secondary" 
@@ -429,13 +515,16 @@ const Pricing = () => {
             />
           </div>
           <DialogFooter>
-            <Button variant="secondary" onClick={()=> setContactOpen(false)}>Anuluj</Button>
-            <Button onClick={()=> { 
-              // tutaj możesz dodać submit do API/email 
-              setContactOpen(false); 
-              alert('Dziękujemy! Skontaktujemy się w ciągu 24h.');
-            }}>
-              Wyślij zapytanie
+            <Button variant="secondary" onClick={()=> setContactOpen(false)} disabled={isSubmitting}>Anuluj</Button>
+            <Button onClick={handleSubmitQuote} disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Wysyłanie...
+                </>
+              ) : (
+                'Wyślij zapytanie'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

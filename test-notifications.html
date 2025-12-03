@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Systemu Powiadomień - ByteClinic</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .test-section {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button.success {
+            background: #28a745;
+        }
+        button.error {
+            background: #dc3545;
+        }
+        .output {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .status {
+            font-weight: bold;
+            padding: 5px 10px;
+            border-radius: 3px;
+            display: inline-block;
+            margin-left: 10px;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔔 Test Systemu Powiadomień - ByteClinic</h1>
+    <p>Testuje różne funkcje powiadomień w systemie ByteClinic.</p>
+
+    <div class="container">
+        <h2>📊 Status Systemu</h2>
+        <div id="systemStatus">
+            <p>🔄 Sprawdzanie połączenia z Supabase...</p>
+        </div>
+        <div id="notificationStats"></div>
+    </div>
+
+    <div class="container">
+        <h2>📧 Testy Powiadomień Email</h2>
+        
+        <div class="test-section">
+            <h3>1. Nowe zgłoszenie naprawcze</h3>
+            <button onclick="testRepairRequest()">Wyślij test</button>
+            <button onclick="showRepairRequestForm()">Formularz</button>
+            <div id="repairRequestOutput" class="output" style="display:none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>2. Potwierdzenie rezerwacji</h3>
+            <button onclick="testBookingConfirmation()">Wyślij test</button>
+            <button onclick="showBookingForm()">Formularz</button>
+            <div id="bookingOutput" class="output" style="display:none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>3. Aktualizacja statusu naprawy</h3>
+            <button onclick="testRepairStatus()">Wyślij test</button>
+            <button onclick="showStatusForm()">Formularz</button>
+            <div id="statusOutput" class="output" style="display:none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>4. Przypomnienie o wizycie</h3>
+            <button onclick="testReminder()">Wyślij test</button>
+            <div id="reminderOutput" class="output" style="display:none;"></div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>⚙️ Testy Techniczne</h2>
+        <button onclick="testEdgeFunctions()">Test Edge Functions</button>
+        <button onclick="testNotificationService()">Test NotificationService</button>
+        <button onclick="clearTests()">Wyczyść wyniki</button>
+        <div id="technicalOutput" class="output" style="display:none;"></div>
+    </div>
+
+    <script>
+        // Config
+        const SUPABASE_URL = 'https://glwqpjqvivzkbbvluxdd.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdsd3FwanF2aXZ6a2Jidmx1eGRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1NzQ0NDYsImV4cCI6MjA3NzE1MDQ0Nn0.rxdXK0JNSBt65EGxU1Mb0d-Up0WBq3c6pz6dCvGy5yc';
+
+        // Sprawdź status systemu przy starcie
+        document.addEventListener('DOMContentLoaded', function() {
+            checkSystemStatus();
+        });
+
+        async function checkSystemStatus() {
+            const statusDiv = document.getElementById('systemStatus');
+            const statsDiv = document.getElementById('notificationStats');
+            
+            try {
+                // Test podstawowego połączenia
+                const response = await fetch(`${SUPABASE_URL}/functions/v1/notify-system`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ test: true })
+                });
+
+                const data = await response.json();
+                statusDiv.innerHTML = `
+                    <p>✅ Połączenie z Supabase: <span class="status success">Działające</span></p>
+                    <p>🌐 URL: ${SUPABASE_URL}</p>
+                    <p>📅 Czas testu: ${new Date().toLocaleString('pl-PL')}</p>
+                `;
+            } catch (error) {
+                statusDiv.innerHTML = `
+                    <p>❌ Połączenie z Supabase: <span class="status error">Błąd</span></p>
+                    <p>💥 Błąd: ${error.message}</p>
+                `;
+            }
+
+            // Sprawdź statystyki przypomnień
+            const reminders = JSON.parse(localStorage.getItem('pendingReminders') || '[]');
+            statsDiv.innerHTML = `
+                <p>📊 Przypomnienia w localStorage: ${reminders.length}</p>
+                <p>🖥️ Środowisko: ${navigator.userAgent}</p>
+                <p>🍪 Cookies włączone: ${navigator.cookieEnabled}</p>
+            `;
+        }
+
+        // Funkcje testowe
+        async function testNotification(template, data, outputId) {
+            const output = document.getElementById(outputId);
+            output.style.display = 'block';
+            output.textContent = '🔄 Wysyłanie powiadomienia...';
+
+            try {
+                const startTime = Date.now();
+                const response = await fetch(`${SUPABASE_URL}/functions/v1/notify-system`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ template, data })
+                });
+
+                const result = await response.json();
+                const endTime = Date.now();
+                const duration = endTime - startTime;
+
+                if (response.ok && result.success) {
+                    output.innerHTML = `
+✅ SUKCES - Powiadomienie wysłane!
+⏱️ Czas odpowiedzi: ${duration}ms
+📧 Typ: ${template}
+👤 Odbiorca: ${result.data.recipient || 'N/A'}
+🆔 ID: ${result.data.id}
+⏰ Timestamp: ${result.data.timestamp}
+📊 Odpowiedź: ${JSON.stringify(result, null, 2)}
+                    `;
+                    output.className = 'output success';
+                } else {
+                    output.innerHTML = `
+❌ BŁĄD - Problem z wysyłką
+📊 Status: ${response.status}
+💥 Błąd: ${JSON.stringify(result, null, 2)}
+                    `;
+                    output.className = 'output error';
+                }
+            } catch (error) {
+                output.innerHTML = `
+💥 WYJĄTEK - Błąd połączenia
+🔗 URL: ${SUPABASE_URL}/functions/v1/notify-system
+💥 Błąd: ${error.message}
+                `;
+                output.className = 'output error';
+            }
+        }
+
+        // Konkretne testy
+        function testRepairRequest() {
+            const testData = {
+                id: 'test-' + Date.now(),
+                name: 'Jan Kowalski',
+                email: 'jan.kowalski@example.com',
+                phone: '+48 500 600 700',
+                device: 'MacBook Pro 2020',
+                message: 'Test zgłoszenia naprawczego - nie włącza się po aktualizacji'
+            };
+            testNotification('repair_request', testData, 'repairRequestOutput');
+        }
+
+        function testBookingConfirmation() {
+            const testData = {
+                name: 'Anna Testowa',
+                email: 'anna.testowa@example.com',
+                date: '2025-12-05',
+                time: '14:30',
+                service: 'Diagnoza i naprawa laptopa',
+                duration: 60,
+                price: 120
+            };
+            testNotification('booking_confirmation', testData, 'bookingOutput');
+        }
+
+        function testRepairStatus() {
+            const testData = {
+                repairId: 'rep-' + Date.now(),
+                name: 'Piotr Wiśniewski',
+                email: 'piotr.wisniewski@example.com',
+                status: 'w naprawie',
+                progress: 65,
+                notes: 'Wymieniono pamięć RAM, trwa testowanie systemu'
+            };
+            testNotification('repair_status_update', testData, 'statusOutput');
+        }
+
+        function testReminder() {
+            const testData = {
+                bookingId: 'booking-' + Date.now(),
+                name: 'Katarzyna Nowak',
+                email: 'katarzyna.nowak@example.com',
+                date: '2025-12-04',
+                time: '10:00',
+                service: 'Konsultacja techniczna',
+                duration: 30
+            };
+            testNotification('appointment_reminder', testData, 'reminderOutput');
+        }
+
+        // Test Edge Functions
+        async function testEdgeFunctions() {
+            const output = document.getElementById('technicalOutput');
+            output.style.display = 'block';
+            output.textContent = '🔍 Testowanie Edge Functions...';
+
+            try {
+                // Test notify-new-diagnosis
+                const response1 = await fetch(`${SUPABASE_URL}/functions/v1/notify-new-diagnosis`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        record: {
+                            id: 'test-' + Date.now(),
+                            name: 'Test User',
+                            email: 'test@example.com',
+                            device: 'Test Device',
+                            message: 'Test message'
+                        }
+                    })
+                });
+
+                const result1 = await response1.text();
+                
+                // Test booking-api
+                const response2 = await fetch(`${SUPABASE_URL}/functions/v1/booking-api`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ test: true })
+                });
+
+                const result2 = await response2.text();
+
+                output.innerHTML = `
+🔍 WYNIKI TESTOWANIA EDGE FUNCTIONS:
+
+📧 notify-new-diagnosis:
+   Status: ${response1.status}
+   Odpowiedź: ${result1.substring(0, 200)}...
+
+📅 booking-api:
+   Status: ${response2.status}
+   Odpowiedź: ${result2.substring(0, 200)}...
+
+⏰ Czas testu: ${new Date().toLocaleString('pl-PL')}
+                `;
+            } catch (error) {
+                output.innerHTML = `💥 Błąd testowania Edge Functions: ${error.message}`;
+            }
+        }
+
+        // Test NotificationService
+        function testNotificationService() {
+            const output = document.getElementById('technicalOutput');
+            output.style.display = 'block';
+
+            // Symulacja localStorage
+            const mockLocalStorage = {
+                getItem: (key) => localStorage.getItem(key),
+                setItem: (key, value) => localStorage.setItem(key, value)
+            };
+
+            // Symulacja przypomnień
+            const mockReminders = [
+                {
+                    id: 'reminder-1',
+                    sendAt: Date.now() + 3600000, // za godzinę
+                    sent: false,
+                    data: { bookingId: 'B001', email: 'test@example.com' }
+                }
+            ];
+
+            mockLocalStorage.setItem('pendingReminders', JSON.stringify(mockReminders));
+
+            output.innerHTML = `
+🔧 TEST NOTIFICATIONSERVICE:
+
+📝 Przypomnienia w localStorage: ${mockReminders.length}
+📊 Statystyki:
+   - Aktywne przypomnienia: ${mockReminders.length}
+   - Niewysłane: ${mockReminders.filter(r => !r.sent).length}
+   - Gotowe do wysłania: ${mockReminders.filter(r => r.sendAt <= Date.now() && !r.sent).length}
+
+🛠️ Funkcje serwisu:
+   ✅ scheduleAppointmentReminder() - funkcja dostępna
+   ✅ checkPendingReminders() - funkcja dostępna
+   ✅ sendAppointmentReminder() - funkcja dostępna
+
+📱 Environment:
+   User Agent: ${navigator.userAgent}
+   Cookies: ${navigator.cookieEnabled ? 'Włączone' : 'Wyłączone'}
+   Lokalizacja: ${navigator.language}
+            `;
+        }
+
+        // Formularze
+        function showRepairRequestForm() {
+            const output = document.getElementById('repairRequestOutput');
+            output.style.display = 'block';
+            output.innerHTML = `
+📝 FORMULARZ ZGŁOSZENIA NAPRAWCZEGO:
+
+Imię: <input type="text" id="rrName" value="Jan Kowalski"><br>
+Email: <input type="email" id="rrEmail" value="jan@example.com"><br>
+Telefon: <input type="tel" id="rrPhone" value="+48 500 600 700"><br>
+Urządzenie: <input type="text" id="rrDevice" value="Laptop"><br>
+Opis: <textarea id="rrMessage">Test z formularza</textarea><br>
+<button onclick="submitRepairRequest()">Wyślij</button>
+            `;
+        }
+
+        function submitRepairRequest() {
+            const data = {
+                id: 'form-' + Date.now(),
+                name: document.getElementById('rrName').value,
+                email: document.getElementById('rrEmail').value,
+                phone: document.getElementById('rrPhone').value,
+                device: document.getElementById('rrDevice').value,
+                message: document.getElementById('rrMessage').value
+            };
+            testNotification('repair_request', data, 'repairRequestOutput');
+        }
+
+        function showBookingForm() {
+            const output = document.getElementById('bookingOutput');
+            output.style.display = 'block';
+            output.innerHTML = `
+📅 FORMULARZ REZERWACJI:
+
+Imię: <input type="text" id="bkName" value="Anna Nowak"><br>
+Email: <input type="email" id="bkEmail" value="anna@example.com"><br>
+Data: <input type="date" id="bkDate" value="2025-12-05"><br>
+Godzina: <input type="time" id="bkTime" value="14:30"><br>
+Usługa: <input type="text" id="bkService" value="Diagnoza laptopa"><br>
+<button onclick="submitBooking()">Wyślij</button>
+            `;
+        }
+
+        function submitBooking() {
+            const data = {
+                name: document.getElementById('bkName').value,
+                email: document.getElementById('bkEmail').value,
+                date: document.getElementById('bkDate').value,
+                time: document.getElementById('bkTime').value,
+                service: document.getElementById('bkService').value,
+                duration: 60,
+                price: 120
+            };
+            testNotification('booking_confirmation', data, 'bookingOutput');
+        }
+
+        function showStatusForm() {
+            const output = document.getElementById('statusOutput');
+            output.style.display = 'block';
+            output.innerHTML = `
+📊 FORMULARZ STATUSU NAPRAWY:
+
+Numer naprawy: <input type="text" id="stRepairId" value="rep-123"><br>
+Imię: <input type="text" id="stName" value="Piotr"><br>
+Email: <input type="email" id="stEmail" value="piotr@example.com"><br>
+Status: <select id="stStatus">
+    <option value="received">Przyjęte</option>
+    <option value="diagnosed">Zdiagnozowane</option>
+    <option value="in_progress" selected>W naprawie</option>
+    <option value="testing">Testowanie</option>
+    <option value="completed">Zakończone</option>
+    <option value="ready">Gotowe</option>
+</select><br>
+Postęp: <input type="range" id="stProgress" min="0" max="100" value="65"><span id="progressValue">65</span>%<br>
+Uwagi: <textarea id="stNotes">Test statusu</textarea><br>
+<button onclick="submitStatus()">Wyślij</button>
+
+<script>
+document.getElementById('stProgress').addEventListener('input', function() {
+    document.getElementById('progressValue').textContent = this.value;
+});
+</script>
+            `;
+        }
+
+        function submitStatus() {
+            const data = {
+                repairId: document.getElementById('stRepairId').value,
+                name: document.getElementById('stName').value,
+                email: document.getElementById('stEmail').value,
+                status: document.getElementById('stStatus').value,
+                progress: parseInt(document.getElementById('stProgress').value),
+                notes: document.getElementById('stNotes').value
+            };
+            testNotification('repair_status_update', data, 'statusOutput');
+        }
+
+        // Wyczyść wyniki
+        function clearTests() {
+            const outputs = document.querySelectorAll('.output');
+            outputs.forEach(output => {
+                output.style.display = 'none';
+                output.textContent = '';
+                output.className = 'output';
+            });
+        }
+
+        // Auto-refresh statusu co 30 sekund
+        setInterval(checkSystemStatus, 30000);
+    </script>
+</body>
+</html>

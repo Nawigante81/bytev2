@@ -46,7 +46,7 @@ serve(async (req: Request) => {
   try {
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
       {
         global: {
           headers: { Authorization: req.headers.get('Authorization')! },
@@ -157,7 +157,42 @@ async function createBooking(supabaseClient: any, req: Request) {
 
     if (bookingError) throw bookingError
 
-    // Zapisz log emaila
+    // Wysyłaj email potwierdzający rezerwację
+    try {
+      const notificationResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/notify-system`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          template: 'booking_confirmation',
+          data: {
+            email: bookingData.customerEmail,
+            name: bookingData.customerName,
+            date: bookingData.bookingDate,
+            time: bookingData.bookingTime,
+            service: bookingData.serviceName,
+            duration: bookingData.durationMinutes,
+            price: 0, // Cena będzie określana osobno
+            device: bookingData.deviceType,
+            phone: bookingData.customerPhone,
+            bookingId: booking.booking_id
+          }
+        })
+      })
+
+      if (!notificationResponse.ok) {
+        console.error('Błąd wysyłania emaila potwierdzającego:', await notificationResponse.text())
+      } else {
+        console.log('✅ Email potwierdzający rezerwację wysłany pomyślnie')
+      }
+    } catch (emailError) {
+      console.error('Błąd wywołania systemu powiadomień:', emailError)
+      // Nie przerywamy procesu rezerwacji z powodu błędu emaila
+    }
+
+    // Zapisz log emaila (dla celów audytowych)
     await logEmailNotification(supabaseClient, {
       type: 'booking_confirmation',
       recipient_email: bookingData.customerEmail,

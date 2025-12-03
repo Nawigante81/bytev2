@@ -1,6 +1,7 @@
 // Hook do obsługi powiadomień w komponentach React
 import { useEffect, useCallback } from 'react';
 import { useToast } from '@/components/ui/use-toast';
+import { supabase } from '@/lib/supabaseClient';
 import notificationService from '@/services/notificationService';
 import emailService from '@/services/emailService';
 
@@ -120,16 +121,65 @@ export const useBookingNotifications = () => {
   const notifications = useNotifications();
 
   const completeBooking = useCallback(async (bookingData) => {
-    // Wyślij email potwierdzający
-    await notifications.sendBookingEmail(bookingData);
-    
-    // Zaplanuj przypomnienie na 24h przed wizytą
-    notifications.scheduleAppointmentReminder(bookingData, 24);
-    
-    return {
-      emailSent: true,
-      reminderScheduled: true
-    };
+    try {
+      // 1. Zapisz rezerwację do bazy danych
+      const { data: bookingRecord, error: bookingError } = await supabase
+        .from('bookings')
+        .insert({
+          booking_id: bookingData.bookingId,
+          customer_name: bookingData.name,
+          customer_email: bookingData.email,
+          customer_phone: bookingData.phone,
+          service_type: bookingData.serviceType || 'diag-laptop',
+          service_name: bookingData.service,
+          device_type: bookingData.device || 'other',
+          device_model: bookingData.deviceModel || '',
+          booking_date: bookingData.date,
+          booking_time: bookingData.time,
+          duration_minutes: bookingData.duration,
+          price: bookingData.price,
+          status: 'confirmed',
+          notes: bookingData.description || ''
+        })
+        .select()
+        .single();
+
+      if (bookingError) {
+        console.error('Błąd zapisu rezerwacji:', bookingError);
+        throw bookingError;
+      }
+
+      // 2. Zapisz dane klienta (opcjonalnie)
+      try {
+        await supabase
+          .from('customers')
+          .upsert({
+            email: bookingData.email,
+            name: bookingData.name,
+            phone: bookingData.phone
+          });
+      } catch (customerError) {
+        console.warn('Nie udało się zapisać danych klienta:', customerError);
+      }
+
+      // 3. Wyślij email potwierdzający
+      await notifications.sendBookingEmail(bookingData);
+      
+      // 4. Zaplanuj przypomnienie na 24h przed wizytą
+      notifications.scheduleAppointmentReminder(bookingData, 24);
+      
+      return {
+        success: true,
+        bookingId: bookingData.bookingId,
+        emailSent: true,
+        reminderScheduled: true,
+        databaseSaved: true,
+        bookingRecord
+      };
+    } catch (error) {
+      console.error('Błąd kompletowania rezerwacji:', error);
+      throw error;
+    }
   }, [notifications]);
 
   return {

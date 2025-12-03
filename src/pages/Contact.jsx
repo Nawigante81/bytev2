@@ -205,7 +205,7 @@ const Contact = () => {
 
       {/* Contact Info Cards */}
       <SectionWrapper className="py-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
           {contactInfo.map((info, index) => (
             <motion.div
               key={index}

@@ -117,11 +117,10 @@ const BookingSystem = () => {
     setIsLoading(true);
     
     try {
-      // Symulacja zapisu do bazy danych
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      const bookingId = 'BC-' + Math.random().toString(36).substr(2, 9).toUpperCase();
       const selectedServiceData = serviceTypes.find(s => s.id === selectedService);
+      
+      // Generuj krótsze ID dla bazy danych (max 20 znaków)
+      const bookingId = 'BC-' + Math.random().toString(36).substr(2, 6).toUpperCase();
       const selectedDateData = availableDates.find(d => d.value === selectedDate);
       
       // Dane rezerwacji
@@ -129,7 +128,7 @@ const BookingSystem = () => {
         bookingId,
         email: customerInfo.email,
         name: customerInfo.name,
-        date: selectedDateData.label,
+        date: selectedDateData.label || selectedDate,
         time: selectedSlot,
         service: selectedServiceData.name,
         duration: selectedServiceData.duration,
@@ -138,8 +137,23 @@ const BookingSystem = () => {
         phone: customerInfo.phone
       };
       
-      // Użyj hooka do obsługi email i przypomnień
-      await completeBooking(bookingData);
+      // Utwórz rezerwację przez Edge Function (omija RLS)
+      const bookingResponse = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-booking`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(bookingData)
+      });
+
+      if (!bookingResponse.ok) {
+        const errorText = await bookingResponse.text();
+        throw new Error(`Błąd tworzenia rezerwacji: ${errorText}`);
+      }
+
+      const bookingResult = await bookingResponse.json();
+      console.log('✅ Rezerwacja utworzona:', bookingResult);
       
       setBookingConfirmed(true);
       
