@@ -58,6 +58,17 @@ const Contact = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Sprawdź czy użytkownik jest zalogowany
+    if (!user) {
+      toast({
+        variant: "destructive",
+        title: "Wymagane logowanie",
+        description: "Aby wysłać zgłoszenie, musisz być zalogowany.",
+      });
+      return;
+    }
+    
     if (!validateForm()) {
       toast({
         variant: "destructive",
@@ -245,6 +256,20 @@ const Contact = () => {
                 </p>
               </CardHeader>
               <CardContent>
+                {!user ? (
+                  <div className="text-center py-12">
+                    <div className="mb-6">
+                      <MessageSquare className="w-16 h-16 text-primary mx-auto mb-4 opacity-50" />
+                      <h3 className="text-xl font-semibold mb-2">Wymagane logowanie</h3>
+                      <p className="text-muted-foreground mb-6">
+                        Aby wysłać zgłoszenie naprawcze, musisz być zalogowany w systemie.
+                      </p>
+                    </div>
+                    <Button asChild size="lg">
+                      <a href="/auth">Zaloguj się lub zarejestruj</a>
+                    </Button>
+                  </div>
+                ) : (
                 <form onSubmit={handleSubmit} className="space-y-6" noValidate>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div className="space-y-2">
@@ -359,6 +384,7 @@ const Contact = () => {
                     Wyślij zgłoszenie
                   </Button>
                 </form>
+                )}
               </CardContent>
             </Card>
           </motion.div>

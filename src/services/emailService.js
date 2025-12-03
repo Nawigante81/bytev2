@@ -1,10 +1,11 @@
 // Serwis do obsługi emaili
-// Integracja z Resend (zalecane) lub SendGrid
+// Integracja z Supabase Edge Functions
 
-// Config - ZMIENIĆ NA RZECZYWISTE KLUCZE API
+// Config - używa Supabase Edge Functions
 const EMAIL_CONFIG = {
-  provider: 'resend', // lub 'sendgrid'
-  apiKey: import.meta.env.VITE_EMAIL_API_KEY || 'demo-key',
+  provider: 'supabase',
+  supabaseUrl: import.meta.env.VITE_SUPABASE_URL,
+  supabaseAnonKey: import.meta.env.VITE_SUPABASE_ANON_KEY,
   fromEmail: 'noreply@byteclinic.pl',
   fromName: 'ByteClinic Serwis'
 };
@@ -328,10 +329,8 @@ class EmailService {
     try {
       const emailContent = EMAIL_TEMPLATES[template](data);
       
-      if (this.config.provider === 'resend') {
-        return await this.sendWithResend(to, emailContent);
-      } else if (this.config.provider === 'sendgrid') {
-        return await this.sendWithSendGrid(to, emailContent);
+      if (this.config.provider === 'supabase') {
+        return await this.sendWithSupabase(to, emailContent, template, data);
       } else {
         throw new Error('Nieobsługiwany provider email');
       }
@@ -341,58 +340,44 @@ class EmailService {
     }
   }
 
-  async sendWithResend(to, emailContent) {
-    // Implementacja z Resend API
-    const response = await fetch('https://api.resend.com/emails', {
+  async sendWithSupabase(to, emailContent, template, data) {
+    // Implementacja z Supabase Edge Functions
+    const functionName = this.getFunctionNameForTemplate(template);
+    
+    const response = await fetch(`${this.config.supabaseUrl}/functions/v1/${functionName}`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${this.config.apiKey}`,
+        'Authorization': `Bearer ${this.config.supabaseAnonKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: this.config.fromEmail,
-        to: [to],
+        to,
         subject: emailContent.subject,
-        html: emailContent.html
+        html: emailContent.html,
+        data: data
       })
     });
 
     if (!response.ok) {
-      throw new Error(`Resend API error: ${response.statusText}`);
+      const errorText = await response.text();
+      console.error('Supabase Function Error:', errorText);
+      throw new Error(`Supabase Function error: ${response.statusText}`);
     }
 
     return await response.json();
   }
 
-  async sendWithSendGrid(to, emailContent) {
-    // Implementacja z SendGrid API
-    const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${this.config.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        personalizations: [{
-          to: [{ email: to }],
-          subject: emailContent.subject
-        }],
-        from: {
-          email: this.config.fromEmail,
-          name: this.config.fromName
-        },
-        content: [{
-          type: 'text/html',
-          value: emailContent.html
-        }]
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`SendGrid API error: ${response.statusText}`);
-    }
-
-    return { success: true };
+  getFunctionNameForTemplate(template) {
+    const functionMap = {
+      'bookingConfirmation': 'notify-booking-confirmation',
+      'repairStatusUpdate': 'notify-repair-status',
+      'repairReady': 'notify-repair-ready',
+      'appointmentReminder': 'notify-appointment-reminder',
+      'emailConfirmation': 'notify-email-confirmation',
+      'repairRequest': 'notify-new-diagnosis'
+    };
+    
+    return functionMap[template] || 'notify-general';
   }
 
   // Metody pomocnicze dla konkretnych typów emaili
