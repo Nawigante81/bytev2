@@ -62,6 +62,17 @@ export const AuthProvider = ({ children }) => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        // Handle specific auth events
+        if (event === 'SIGNED_IN') {
+          console.log('User signed in');
+        } else if (event === 'SIGNED_OUT') {
+          console.log('User signed out');
+        } else if (event === 'USER_UPDATED') {
+          console.log('User updated');
+        } else if (event === 'PASSWORD_RECOVERY') {
+          console.log('Password recovery');
+        }
+        
         handleSession(session);
       }
     );
@@ -70,11 +81,15 @@ export const AuthProvider = ({ children }) => {
   }, [handleSession]);
 
   const signUp = useCallback(async (email, password, options) => {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: `${window.location.origin}/panel`,
+        data: {
+          email: email,
+          ...(options?.data || {})
+        },
         ...options,
       },
     });
@@ -90,9 +105,15 @@ export const AuthProvider = ({ children }) => {
         title: "Rejestracja udana!",
         description: "Sprawdź e-mail, aby potwierdzić konto.",
       });
+      
+      // Log success for debugging
+      console.log('User signed up successfully. Email confirmation sent to:', email);
+      if (data?.user && !data.user.email_confirmed_at) {
+        console.log('Email confirmation required. User should check their inbox.');
+      }
     }
 
-    return { error };
+    return { data, error };
   }, [toast]);
 
   const signIn = useCallback(async (email, password) => {
