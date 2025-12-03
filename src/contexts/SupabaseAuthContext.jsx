@@ -87,7 +87,7 @@ export const AuthProvider = ({ children }) => {
       options: {
         emailRedirectTo: `${window.location.origin}/panel`,
         data: {
-          email: email,
+          email,
           ...(options?.data || {})
         },
         ...options,
@@ -106,10 +106,12 @@ export const AuthProvider = ({ children }) => {
         description: "Sprawdź e-mail, aby potwierdzić konto.",
       });
       
-      // Log success for debugging
-      console.log('User signed up successfully. Email confirmation sent to:', email);
-      if (data?.user && !data.user.email_confirmed_at) {
-        console.log('Email confirmation required. User should check their inbox.');
+      // Log success for debugging (only in development)
+      if (import.meta.env.DEV) {
+        console.log('User signed up successfully. Email confirmation sent.');
+        if (data?.user && !data.user.email_confirmed_at) {
+          console.log('Email confirmation required. User should check their inbox.');
+        }
       }
     }
 
