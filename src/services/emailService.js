@@ -1,16 +1,9 @@
 // Serwis do obsługi emaili
-// Integracja z Supabase Edge Functions
+// Używa Supabase Edge Functions
 
-// Config - używa Postmark API (prawdziwe powiadomienia email)
+// Config - używa Supabase Edge Functions
 const EMAIL_CONFIG = {
-  provider: 'postmark',
-  postmark: {
-    apiToken: 'd8babbf2-9ad2-49f1-9d6d-e1e62e003268',
-    fromEmail: 'serwis@byteclinic.pl',
-    fromName: 'ByteClinic Serwis',
-    replyTo: 'kontakt@byteclinic.pl'
-  },
-  // Fallback do Supabase (na wypadek problemów z Postmark)
+  provider: 'supabase',
   supabase: {
     url: import.meta.env.VITE_SUPABASE_URL,
     anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -386,7 +379,7 @@ function stripHtml(html) {
   return html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
 }
 
-// Główny serwis email z integracją Postmark
+// Główny serwis email z integracją Supabase Edge Functions
 class EmailService {
   constructor() {
     this.config = EMAIL_CONFIG;
@@ -398,18 +391,13 @@ class EmailService {
       
       const emailContent = EMAIL_TEMPLATES[template](data);
       
-      let result;
-      
-      if (this.config.provider === 'postmark') {
-        result = await this.sendWithPostmark(to, emailContent, template, data);
-      } else if (this.config.provider === 'supabase') {
-        result = await this.sendWithSupabase(to, emailContent, template, data);
+      if (this.config.provider === 'supabase') {
+        const result = await this.sendWithSupabase(to, emailContent, template, data);
+        console.log(`✅ Email wysłany pomyślnie: ${template} -> ${to}`);
+        return result;
       } else {
         throw new Error(`Nieobsługiwany provider: ${this.config.provider}`);
       }
-      
-      console.log(`✅ Email wysłany pomyślnie: ${template} -> ${to}`);
-      return result;
       
     } catch (error) {
       console.error(`❌ Błąd wysyłania emaila: ${template} -> ${to}`, error);
@@ -417,80 +405,9 @@ class EmailService {
     }
   }
 
-  async sendWithPostmark(to, emailContent, template, data) {
-    // Rzeczywista wysyłka przez Postmark API
-    const postmarkData = {
-      From: this.config.postmark.fromEmail,
-      To: to,
-      Subject: emailContent.subject,
-      HtmlBody: emailContent.html,
-      TextBody: stripHtml(emailContent.html),
-      ReplyTo: this.config.postmark.replyTo,
-      Headers: [
-        { Name: 'X-PM-Message-Stream', Value: 'outbound' },
-        { Name: 'X-PM-Template-Name', Value: template },
-        { Name: 'X-PM-Source', Value: 'byteclinic-system' }
-      ],
-      TrackOpens: true,
-      TrackLinks: 'HtmlOnly',
-      Metadata: {
-        template,
-        timestamp: new Date().toISOString(),
-        source: 'byteclinic-app'
-      }
-    };
 
-    // Dodaj dodatkowe metadane jeśli dostępne
-    if (data.repairId || data.id) {
-      postmarkData.Metadata.repairId = data.repairId || data.id;
-    }
-    if (data.bookingId) {
-      postmarkData.Metadata.bookingId = data.bookingId;
-    }
-
-    const response = await fetch('https://api.postmarkapp.com/email', {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'X-Postmark-Server-Token': this.config.postmark.apiToken
-      },
-      body: JSON.stringify(postmarkData)
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Postmark API Error:', {
-        status: response.status,
-        statusText: response.statusText,
-        response: errorText
-      });
-      throw new Error(`Postmark error (${response.status}): ${errorText}`);
-    }
-
-    const result = await response.json();
-    
-    // Loguj szczegóły wysyłki dla debugowania
-    console.log('📧 Postmark Email Sent:', {
-      messageId: result.MessageID,
-      submittedAt: result.SubmittedAt,
-      to: result.To,
-      template: template
-    });
-
-    return {
-      success: true,
-      provider: 'postmark',
-      messageId: result.MessageID,
-      submittedAt: result.SubmittedAt,
-      to: result.To,
-      template,
-      data: result
-    };
-  }
 
   async sendWithSupabase(to, emailContent, template, data) {
-    // Fallback do Supabase jeśli Postmark nie działa
     const functionName = this.getFunctionNameForTemplate(template);
     
     const response = await fetch(`${this.config.supabase.url}/functions/v1/${functionName}`, {

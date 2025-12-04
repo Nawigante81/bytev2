@@ -16,7 +16,6 @@ Nowi użytkownicy nie otrzymują maili weryfikacyjnych po rejestracji.
 ### Krok 2: Sprawdź SMTP
 W tym samym panelu: **Authentication** → **Settings** → **SMTP Settings**
 - Wybierz: **Default (Supabase SMTP)**
-- Jeśli nie działa, skonfiguruj Postmark
 
 ### Krok 3: Test
 ```bash

@@ -1,47 +1,53 @@
 // Setup type definitions for built-in Supabase Runtime APIs
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
+// Declare Deno global for TypeScript
+declare const Deno: any;
+
 // --- CONFIG ---
-const POSTMARK_SERVER_TOKEN = Deno.env.get('POSTMARK_SERVER_TOKEN')!;
-const FROM_EMAIL = Deno.env.get('FROM_EMAIL') || "noreply@byteclinic.pl";
-const FROM_NAME = Deno.env.get('FROM_NAME') || "ByteClinic";
-const ADMIN_EMAIL = Deno.env.get('ADMIN_EMAIL')!;
-const POSTMARK_ENDPOINT = 'https://api.postmarkapp.com/email';
+const ADMIN_EMAIL = Deno.env.get('ADMIN_EMAIL') || 'admin@byteclinic.pl';
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 // --- Helper: skrócone ID ---
 const shortId = (id: string) => id?.slice(0, 8) || id;
 
-// --- SEND EMAIL VIA POSTMARK ---
-async function sendEmail(to: string, subject: string, html: string) {
-  const emailData = {
-    From: `${FROM_NAME} <${FROM_EMAIL}>`,
-    To: to,
-    Subject: subject,
-    HtmlBody: html,
-    ReplyTo: 'kontakt@byteclinic.pl',
-    Tag: 'new-diagnosis',
-    TrackOpens: true,
-    TrackLinks: 'HtmlOnly'
+// --- SEND EMAIL VIA SUPABASE ---
+async function sendEmail(to: string, subject: string, html: string, record: any) {
+  // Create notification record in database
+  const notificationData = {
+    type: 'repair_request',
+    recipient_email: to,
+    subject: subject,
+    html_content: html,
+    status: 'pending',
+    metadata: {
+      record_id: record.id,
+      device: record.device,
+      source: 'edge-function'
+    },
+    created_at: new Date().toISOString()
   };
 
-  const res = await fetch(POSTMARK_ENDPOINT, {
-    method: "POST",
+  // Insert notification into database
+  const insertResponse = await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
+    method: 'POST',
     headers: {
-      "Accept": "application/json",
-      "Content-Type": "application/json",
-      "X-Postmark-Server-Token": POSTMARK_SERVER_TOKEN,
+      'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_SERVICE_ROLE_KEY
     },
-    body: JSON.stringify(emailData),
+    body: JSON.stringify(notificationData)
   });
 
-  if (!res.ok) {
-    const errorText = await res.text();
-    console.log("Postmark ERROR:", res.status, errorText);
-    throw new Error(`Postmark email error: ${res.statusText}`);
+  if (!insertResponse.ok) {
+    const errorText = await insertResponse.text();
+    console.error("Database insert error:", errorText);
+    throw new Error(`Database insert error: ${insertResponse.statusText}`);
   }
 
-  const result = await res.json();
-  console.log("Postmark SUCCESS:", result.MessageID, "to:", to);
+  const result = await insertResponse.json();
+  console.log("Notification created:", result[0]?.id, "for:", to);
   return result;
 }
 
@@ -91,7 +97,7 @@ Deno.serve(async (req: Request) => {
     const subject = `🔔 Nowe zgłoszenie #${id} - ${device}`;
 
     // Send email
-    await sendEmail(ADMIN_EMAIL, subject, html);
+    await sendEmail(ADMIN_EMAIL, subject, html, record);
 
     return new Response(JSON.stringify({ 
       ok: true, 
