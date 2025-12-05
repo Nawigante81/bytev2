@@ -1,215 +1,240 @@
-// Hook do obsługi powiadomień w komponentach React
-import { useEffect, useCallback } from 'react';
-import { useToast } from '@/components/ui/use-toast';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import notificationService from '@/services/notificationService';
-import emailService from '@/services/emailService';
+import { useToast } from '@/components/ui/use-toast';
 
-export const useNotifications = () => {
+// Hook do powiadomień o rezerwacjach
+export const useBookingNotifications = () => {
+  const { toast } = useToast();
+  
+  const completeBooking = useCallback((bookingData) => {
+    // Toast z potwierdzeniem
+    toast({
+      title: "✅ Rezerwacja potwierdzona!",
+      description: `Wizyta ${bookingData.service} dnia ${bookingData.date} o godzinie ${bookingData.time}`,
+    });
+    
+    // Przeglądarka może pokazać powiadomienie
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification('Rezerwacja potwierdzona!', {
+        body: `Wizyta ${bookingData.service} dnia ${bookingData.date} o godzinie ${bookingData.time}`,
+        icon: '/logo.png'
+      });
+    }
+  }, [toast]);
+  
+  return { completeBooking };
+};
+
+// Hook do powiadomień o naprawach
+export const useRepairNotifications = () => {
+  const { toast } = useToast();
+  
+  const sendRepairStatusEmail = useCallback(async (repair, oldStatus, newStatus) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('notify-repair-status-change', {
+        body: {
+          repair,
+          old_status: oldStatus,
+          new_status: newStatus
+        }
+      });
+      
+      if (error) {
+        console.error('Błąd wysyłania powiadomienia:', error);
+        return false;
+      }
+      
+      console.log('Powiadomienie wysłane:', data);
+      return true;
+    } catch (error) {
+      console.error('Błąd funkcji Edge:', error);
+      return false;
+    }
+  }, [toast]);
+  
+  const sendRepairReadyEmail = useCallback(async (repair) => {
+    try {
+      // Wysyłanie specjalnego powiadomienia o gotowości do odbioru
+      const { data, error } = await supabase.functions.invoke('notify-repair-status-change', {
+        body: {
+          repair,
+          old_status: 'repair_completed',
+          new_status: 'ready_for_pickup'
+        }
+      });
+      
+      if (error) {
+        console.error('Błąd wysyłania powiadomienia:', error);
+        return false;
+      }
+      
+      toast({
+        title: "🔔 Naprawa gotowa!",
+        description: "Twoja naprawa jest gotowa do odbioru. Sprawdź email i odbierz urządzenie.",
+      });
+      
+      return true;
+    } catch (error) {
+      console.error('Błąd funkcji Edge:', error);
+      return false;
+    }
+  }, [toast]);
+  
+  return { sendRepairStatusEmail, sendRepairReadyEmail };
+};
+
+// Hook do powiadomień w czasie rzeczywistym
+export const useRealtimeNotifications = (userId) => {
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [isConnected, setIsConnected] = useState(false);
   const { toast } = useToast();
 
-  // Rozpocznij serwis przypomnień przy montowaniu
+  const markAsRead = useCallback(async (notificationId) => {
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ read_at: new Date().toISOString() })
+        .eq('id', notificationId);
+
+      if (error) throw error;
+      
+      setNotifications(prev => 
+        prev.map(n => n.id === notificationId ? { ...n, read_at: new Date().toISOString() } : n)
+      );
+      
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error('Błąd oznaczania jako przeczytane:', error);
+    }
+  }, []);
+
+  const markAllAsRead = useCallback(async () => {
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ read_at: new Date().toISOString() })
+        .eq('user_id', userId)
+        .is('read_at', null);
+
+      if (error) throw error;
+      
+      setNotifications(prev => prev.map(n => ({ ...n, read_at: new Date().toISOString() })));
+      setUnreadCount(0);
+    } catch (error) {
+      console.error('Błąd oznaczania wszystkich jako przeczytane:', error);
+    }
+  }, [userId]);
+
+  const fetchNotifications = useCallback(async () => {
+    if (!userId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (error) throw error;
+      
+      setNotifications(data || []);
+      setUnreadCount(data?.filter(n => !n.read_at).length || 0);
+    } catch (error) {
+      console.error('Błąd pobierania powiadomień:', error);
+    }
+  }, [userId]);
+
   useEffect(() => {
-    notificationService.startReminderService();
-    
-    // Cleanup przy odmontowaniu
+    if (!userId) return;
+
+    fetchNotifications();
+
+    // Subskrypcja Realtime dla nowych powiadomień
+    const subscription = supabase
+      .channel(`notifications:${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${userId}`
+        },
+        (payload) => {
+          console.log('Nowe powiadomienie!', payload);
+          
+          const newNotification = payload.new;
+          setNotifications(prev => [newNotification, ...prev]);
+          setUnreadCount(prev => prev + 1);
+          
+          // Toast dla nowego powiadomienia
+          if (!document.hidden) {
+            toast({
+              title: newNotification.title || "🔔 Nowe powiadomienie",
+              description: newNotification.content || newNotification.message,
+              variant: newNotification.type === 'repair_status_update' ? 'default' : 'default'
+            });
+          }
+          
+          // Browser notification
+          if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification(newNotification.title || "Nowe powiadomienie", {
+              body: newNotification.content || newNotification.message,
+              icon: '/logo.png',
+              tag: `notification-${newNotification.id}`
+            });
+          }
+        }
+      )
+      .on('system', {}, (payload) => {
+        if (payload.event === 'connected') {
+          setIsConnected(true);
+        } else if (payload.event === 'disconnected') {
+          setIsConnected(false);
+        }
+      })
+      .subscribe();
+
     return () => {
-      notificationService.stopReminderService();
+      subscription.unsubscribe();
     };
+  }, [userId, fetchNotifications, toast]);
+
+  return {
+    notifications,
+    unreadCount,
+    isConnected,
+    markAsRead,
+    markAllAsRead,
+    refresh: fetchNotifications
+  };
+};
+
+// Hook do ustawiania uprawnień przeglądarki
+export const useNotificationPermission = () => {
+  const [permission, setPermission] = useState(Notification.permission);
+
+  const requestPermission = useCallback(async () => {
+    if (!('Notification' in window)) {
+      console.log('Ta przeglądarka nie obsługuje powiadomień');
+      return false;
+    }
+
+    if (Notification.permission === 'granted') {
+      return true;
+    }
+
+    if (Notification.permission === 'denied') {
+      console.log('Powiadomienia zostały odrzucone przez użytkownika');
+      return false;
+    }
+
+    const permission = await Notification.requestPermission();
+    setPermission(permission);
+    return permission === 'granted';
   }, []);
 
-  // Funkcje pomocnicze
-  const sendBookingEmail = useCallback(async (bookingData) => {
-    try {
-      await emailService.sendBookingConfirmation(bookingData);
-      toast({
-        title: "📧 Email wysłany",
-        description: `Potwierdzenie zostało wysłane na ${bookingData.email}`,
-      });
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Błąd wysyłania emaila",
-        description: "Nie udało się wysłać potwierdzenia. Skontaktuj się z nami.",
-      });
-    }
-  }, [toast]);
-
-  const scheduleAppointmentReminder = useCallback((bookingData, hoursBefore = 24) => {
-    try {
-      notificationService.createAppointmentReminder(bookingData, hoursBefore);
-      toast({
-        title: "⏰ Przypomnienie ustawione",
-        description: `Przypomnimy Ci o wizycie ${hoursBefore}h wcześniej`,
-      });
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Błąd ustawiania przypomnienia",
-        description: "Nie udało się ustawić przypomnienia.",
-      });
-    }
-  }, [toast]);
-
-  const sendRepairStatusEmail = useCallback(async (repairData, previousStatus) => {
-    try {
-      await notificationService.sendRepairStatusUpdate(repairData, previousStatus);
-      if (previousStatus !== repairData.status) {
-        toast({
-          title: "📧 Powiadomienie wysłane",
-          description: "Klient otrzyma email o zmianie statusu",
-        });
-      }
-    } catch (error) {
-      console.error('Błąd wysyłania powiadomienia o statusie:', error);
-    }
-  }, [toast]);
-
-  const sendRepairReadyEmail = useCallback(async (repairData) => {
-    try {
-      await notificationService.sendRepairReadyNotification(repairData);
-      toast({
-        title: "🎉 Powiadomienie wysłane",
-        description: "Klient otrzymał informację o gotowej naprawie",
-      });
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Błąd wysyłania powiadomienia",
-        description: "Nie udało się wysłać powiadomienia o gotowej naprawie.",
-      });
-    }
-  }, [toast]);
-
-  const cancelAppointmentReminder = useCallback((bookingId) => {
-    try {
-      notificationService.cancelReminder(bookingId);
-      toast({
-        title: "🚫 Przypomnienie anulowane",
-        description: "Przypomnienie o wizycie zostało usunięte",
-      });
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Błąd anulowania",
-        description: "Nie udało się anulować przypomnienia.",
-      });
-    }
-  }, [toast]);
-
-  const getNotificationStats = useCallback(() => {
-    return notificationService.getNotificationStats();
-  }, []);
-
-  return {
-    // Email functions
-    sendBookingEmail,
-    sendRepairStatusEmail,
-    sendRepairReadyEmail,
-    
-    // Reminder functions
-    scheduleAppointmentReminder,
-    cancelAppointmentReminder,
-    
-    // Utility functions
-    getNotificationStats
-  };
+  return { permission, requestPermission };
 };
-
-// Hook specjalnie dla komponentu Booking
-export const useBookingNotifications = () => {
-  const notifications = useNotifications();
-
-  const completeBooking = useCallback(async (bookingData) => {
-    try {
-      // 1. Zapisz rezerwację do bazy danych
-      const { data: bookingRecord, error: bookingError } = await supabase
-        .from('bookings')
-        .insert({
-          booking_id: bookingData.bookingId,
-          customer_name: bookingData.name,
-          customer_email: bookingData.email,
-          customer_phone: bookingData.phone,
-          service_type: bookingData.serviceType || 'diag-laptop',
-          service_name: bookingData.service,
-          device_type: bookingData.device || 'other',
-          device_model: bookingData.deviceModel || '',
-          booking_date: bookingData.date,
-          booking_time: bookingData.time,
-          duration_minutes: bookingData.duration,
-          price: bookingData.price,
-          status: 'confirmed',
-          notes: bookingData.description || ''
-        })
-        .select()
-        .single();
-
-      if (bookingError) {
-        console.error('Błąd zapisu rezerwacji:', bookingError);
-        throw bookingError;
-      }
-
-      // 2. Zapisz dane klienta (opcjonalnie)
-      try {
-        await supabase
-          .from('customers')
-          .upsert({
-            email: bookingData.email,
-            name: bookingData.name,
-            phone: bookingData.phone
-          });
-      } catch (customerError) {
-        console.warn('Nie udało się zapisać danych klienta:', customerError);
-      }
-
-      // 3. Wyślij email potwierdzający
-      await notifications.sendBookingEmail(bookingData);
-      
-      // 4. Zaplanuj przypomnienie na 24h przed wizytą
-      notifications.scheduleAppointmentReminder(bookingData, 24);
-      
-      return {
-        success: true,
-        bookingId: bookingData.bookingId,
-        emailSent: true,
-        reminderScheduled: true,
-        databaseSaved: true,
-        bookingRecord
-      };
-    } catch (error) {
-      console.error('Błąd kompletowania rezerwacji:', error);
-      throw error;
-    }
-  }, [notifications]);
-
-  return {
-    ...notifications,
-    completeBooking
-  };
-};
-
-// Hook specjalnie dla systemu śledzenia napraw
-export const useRepairNotifications = () => {
-  const notifications = useNotifications();
-
-  const updateRepairStatus = useCallback(async (repairData, previousStatus) => {
-    // Wyślij email jeśli status się zmienił
-    if (previousStatus !== repairData.status) {
-      await notifications.sendRepairStatusEmail(repairData, previousStatus);
-      
-      // Jeśli status to "ready", wyślij specjalne powiadomienie
-      if (repairData.status === 'ready' || repairData.status === 'completed') {
-        await notifications.sendRepairReadyEmail(repairData);
-      }
-    }
-    
-    return { statusUpdated: true, emailSent: previousStatus !== repairData.status };
-  }, [notifications]);
-
-  return {
-    ...notifications,
-    updateRepairStatus
-  };
-};
-
-export default useNotifications;

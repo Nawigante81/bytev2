@@ -122,8 +122,8 @@ const generateRepairData = () => {
 };
 
 const statusConfig = {
-  new: { 
-    label: 'Nowe', 
+  new_request: { 
+    label: 'Nowe zgłoszenie', 
     color: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
     icon: Package 
   },
@@ -132,37 +132,22 @@ const statusConfig = {
     color: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30',
     icon: BarChart3 
   },
-  in_progress: { 
-    label: 'W naprawie', 
+  waiting_for_parts: { 
+    label: 'Oczekiwanie na części', 
+    color: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+    icon: Package 
+  },
+  in_repair: { 
+    label: 'W trakcie naprawy', 
     color: 'bg-orange-500/20 text-orange-300 border-orange-500/30',
     icon: Wrench 
   },
-  closed: { 
-    label: 'Gotowe', 
-    color: 'bg-green-500/20 text-green-300 border-green-500/30',
-    icon: CheckCircle 
-  },
-  received: { 
-    label: 'Przyjęte', 
-    color: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
-    icon: Package 
-  },
-  diagnosed: { 
-    label: 'Zdiagnozowane', 
-    color: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30',
-    icon: BarChart3 
-  },
-  testing: { 
-    label: 'Testowanie', 
+  repair_completed: { 
+    label: 'Naprawa zakończona', 
     color: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
     icon: CheckCircle 
   },
-  completed: { 
-    label: 'Gotowe', 
-    color: 'bg-green-500/20 text-green-300 border-green-500/30',
-    icon: CheckCircle 
-  },
-  ready: { 
+  ready_for_pickup: { 
     label: 'Gotowe do odbioru', 
     color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
     icon: Truck 
@@ -181,12 +166,12 @@ const formatDate = (dateString) => {
 
 const getProgressColor = (status) => {
   const colors = {
-    received: 'bg-blue-500',
-    diagnosed: 'bg-yellow-500',
-    in_progress: 'bg-orange-500',
-    testing: 'bg-purple-500',
-    completed: 'bg-green-500',
-    ready: 'bg-emerald-500'
+    new_request: 'bg-blue-500',
+    open: 'bg-yellow-500',
+    waiting_for_parts: 'bg-amber-500',
+    in_repair: 'bg-orange-500',
+    repair_completed: 'bg-purple-500',
+    ready_for_pickup: 'bg-emerald-500'
   };
   return colors[status] || 'bg-gray-500';
 };
@@ -272,16 +257,18 @@ const RepairTracker = () => {
 
   const getStatusLabel = (status) => {
     const statusMap = {
-      'new': 'Nowe',
-      'open': 'Otwarte', 
-      'in_progress': 'W trakcie',
-      'closed': 'Zamknięte'
+      'new_request': 'Nowe zgłoszenie',
+      'open': 'Otwarte',
+      'waiting_for_parts': 'Oczekiwanie na części',
+      'in_repair': 'W trakcie naprawy',
+      'repair_completed': 'Naprawa zakończona',
+      'ready_for_pickup': 'Gotowe do odbioru'
     };
     return statusMap[status] || status;
   };
 
   const getStatusProgress = (status) => {
-    const statusOrder = ['new', 'open', 'in_progress', 'closed'];
+    const statusOrder = ['new_request', 'open', 'waiting_for_parts', 'in_repair', 'repair_completed', 'ready_for_pickup'];
     const currentIndex = statusOrder.indexOf(status);
     return currentIndex >= 0 ? ((currentIndex + 1) / statusOrder.length) * 100 : 0;
   };
