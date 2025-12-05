@@ -18,10 +18,10 @@ import { Badge } from '@/components/ui/badge';
 
 const StatusBadge = ({ status }) => {
   const statusConfig = {
-    new: { label: 'Nowe', className: 'bg-blue-500/20 text-blue-300 border-blue-500/30' },
-    open: { label: 'Otwarte', className: 'bg-gray-500/20 text-gray-300 border-gray-500/30' },
-    in_progress: { label: 'W trakcie', className: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30' },
-    closed: { label: 'Zamknięte', className: 'bg-green-500/20 text-green-300 border-green-500/30' },
+    nowe: { label: 'Nowe', className: 'bg-blue-500/20 text-blue-300 border-blue-500/30' },
+    otwarte: { label: 'Otwarte', className: 'bg-gray-500/20 text-gray-300 border-gray-500/30' },
+    w_realizacji: { label: 'W realizacji', className: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30' },
+    zakonczone: { label: 'Zakończone', className: 'bg-green-500/20 text-green-300 border-green-500/30' },
     default: { label: status, className: 'bg-gray-500/20 text-gray-300 border-gray-500/30' },
   };
   const config = statusConfig[status] || statusConfig.default;
@@ -49,14 +49,14 @@ const CustomerPanel = () => {
     setLoading(true);
     
     let query = supabase
-      .from('diagnosis_requests')
+      .from('requests')
       .select('*')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
     if (filter !== 'all') {
       if (filter === 'open') {
-        query = query.in('status', ['new', 'open']);
+        query = query.in('status', ['nowe', 'otwarte']);
       } else {
         query = query.eq('status', filter);
       }
@@ -75,14 +75,14 @@ const CustomerPanel = () => {
 
   const fetchStats = useCallback(async () => {
     if (!user) return;
-    const { data, error } = await supabase.from('diagnosis_requests').select('status').eq('user_id', user.id);
+    const { data, error } = await supabase.from('requests').select('status').eq('user_id', user.id);
     if (error) return;
     
     const newStats = { total: data.length, open: 0, in_progress: 0, closed: 0 };
     data.forEach(t => {
-      if (t.status === 'new' || t.status === 'open') newStats.open++;
-      if (t.status === 'in_progress') newStats.in_progress++;
-      if (t.status === 'closed') newStats.closed++;
+      if (t.status === 'nowe' || t.status === 'otwarte') newStats.open++;
+      if (t.status === 'w_realizacji') newStats.in_progress++;
+      if (t.status === 'zakonczone') newStats.closed++;
     });
     setStats(newStats);
   }, [user]);
@@ -90,12 +90,22 @@ const CustomerPanel = () => {
   const fetchMyFiles = useCallback(async () => {
     if (!user) return;
     setFilesLoading(true);
-    const { data, error } = await supabase
-      .from('user_files')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
-    if (!error) setMyFiles(data || []);
+    try {
+      const { data, error } = await supabase
+        .from('user_files')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      if (!error) {
+        setMyFiles(data || []);
+      } else {
+        // Tabela user_files może nie istnieć - ustaw pustą listę
+        setMyFiles([]);
+      }
+    } catch (err) {
+      console.warn('Tabela user_files nie istnieje:', err);
+      setMyFiles([]);
+    }
     setFilesLoading(false);
   }, [user]);
 
@@ -168,7 +178,7 @@ const CustomerPanel = () => {
   };
 
   const getDisplayName = () => {
-    if (profile?.display_name) return profile.display_name;
+    if (profile?.full_name) return profile.full_name;
     if (user?.email) return user.email.split('@')[0];
     return 'Użytkowniku';
   };
@@ -301,8 +311,8 @@ const CustomerPanel = () => {
               <div className="flex flex-wrap gap-2 pt-4">
                 <Button variant={filter === 'all' ? 'default' : 'outline'} size="sm" onClick={() => setFilter('all')}>Wszystkie</Button>
                 <Button variant={filter === 'open' ? 'default' : 'outline'} size="sm" onClick={() => setFilter('open')}>Otwarte</Button>
-                <Button variant={filter === 'in_progress' ? 'default' : 'outline'} size="sm" onClick={() => setFilter('in_progress')}>W realizacji</Button>
-                <Button variant={filter === 'closed' ? 'default' : 'outline'} size="sm" onClick={() => setFilter('closed')}>Zamknięte</Button>
+                <Button variant={filter === 'w_realizacji' ? 'default' : 'outline'} size="sm" onClick={() => setFilter('w_realizacji')}>W realizacji</Button>
+                <Button variant={filter === 'zakonczone' ? 'default' : 'outline'} size="sm" onClick={() => setFilter('zakonczone')}>Zakończone</Button>
               </div>
             </CardHeader>
             <CardContent>
@@ -368,9 +378,11 @@ const CustomerPanel = () => {
                     if (input) input.value = '';
                   }
                 }} />
-                <Button variant="outline" onClick={() => document.getElementById('user-file-input')?.click()} disabled={uploading}>
+                <Button variant="outline" onClick={() => {
+                  toast({ variant: 'destructive', title: 'Funkcjonalność niedostępna', description: 'System plików jest w trakcie implementacji.' });
+                }} disabled={uploading}>
                   {uploading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                  Wyślij plik
+                  Wyślij plik (w implementacji)
                 </Button>
               </div>
 

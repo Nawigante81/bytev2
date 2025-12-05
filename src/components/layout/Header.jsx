@@ -115,7 +115,7 @@ const Header = () => {
   };
   
   const getDisplayName = () => {
-    if (profile?.display_name) return profile.display_name;
+    if (profile?.full_name) return profile.full_name;
     if (user?.email) return user.email.split('@')[0];
     return 'Użytkownik';
   };
@@ -268,9 +268,14 @@ const Header = () => {
                       <Link to="/panel"><LayoutDashboard className="mr-2 h-4 w-4" /> Mój panel</Link>
                     </DropdownMenuItem>
                     {profile?.role === 'admin' && (
-                      <DropdownMenuItem asChild>
-                        <Link to="/admin/moderacja"><ShieldCheck className="mr-2 h-4 w-4" /> Moderacja</Link>
-                      </DropdownMenuItem>
+                      <>
+                        <DropdownMenuItem asChild>
+                          <Link to="/admin/moderacja"><ShieldCheck className="mr-2 h-4 w-4" /> Moderacja</Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link to="/admin/uzytkownicy"><Users className="mr-2 h-4 w-4" /> Użytkownicy</Link>
+                        </DropdownMenuItem>
+                      </>
                     )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={signOut}>

@@ -1,8 +1,8 @@
 // Test script for notify-system Edge Function
 // Test powiadomień w Supabase
 
-const SUPABASE_URL = 'https://glwqpjqvivzkbbvluxdd.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdsd3FwanF2aXZ6a2Jidmx1eGRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1NzQ0NDYsImV4cCI6MjA3NzE1MDQ0Nn0.rxdXK0JNSBt65EGxU1Mb0d-Up0WBq3c6pz6dCvGy5yc';
+const SUPABASE_URL = 'https://wllxicmacmfzmqdnovhp.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndsbHhpY21hY21mem1xZG5vdmhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5NDA4MjcsImV4cCI6MjA4MDUxNjgyN30.9uV-EYGP8JvVuqmEPIRyTG7hCHPaKabc8MxnxzHl8ok';
 
 async function testNotification(template, data) {
   const response = await fetch(`${SUPABASE_URL}/functions/v1/notify-system`, {

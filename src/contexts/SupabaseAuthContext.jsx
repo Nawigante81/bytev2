@@ -15,16 +15,21 @@ export const AuthProvider = ({ children }) => {
 
   const fetchProfile = useCallback(async (userId) => {
     if (!userId) return null;
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
-    if (error && error.code !== 'PGRST116') { // PGRST116: no rows found
-      console.error('Error fetching profile:', error);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle(); // maybeSingle() zwraca null zamiast błędu gdy nie ma wierszy
+      if (error && error.code !== 'PGRST116') { // PGRST116: no rows found
+        console.error('Error fetching profile:', error);
+        return null;
+      }
+      return data;
+    } catch (err) {
+      console.warn('Tabela profiles może nie istnieć:', err);
       return null;
     }
-    return data;
   }, []);
 
   const handleSession = useCallback(async (session) => {
@@ -35,14 +40,27 @@ export const AuthProvider = ({ children }) => {
       let userProfile = await fetchProfile(currentUser.id);
       // Jeśli brak profilu, spróbuj utworzyć go po stronie aplikacji (wymaga polityk RLS INSERT na profiles)
       if (!userProfile) {
-        const displayName = currentUser.user_metadata?.display_name || currentUser.email?.split('@')[0] || 'Użytkownik';
-        const { error: upsertErr } = await supabase.from('profiles').upsert({
-          id: currentUser.id,
-          display_name: displayName,
-          role: 'user',
-        }, { onConflict: 'id' });
-        if (!upsertErr) {
-          userProfile = await fetchProfile(currentUser.id);
+        try {
+          const fullName = currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0] || 'Użytkownik';
+          const { error: upsertErr } = await supabase.from('profiles').upsert({
+            id: currentUser.id,
+            full_name: fullName,
+            role: 'user',
+          }, { onConflict: 'id' });
+          if (!upsertErr) {
+            userProfile = await fetchProfile(currentUser.id);
+          }
+        } catch (upsertError) {
+          console.warn('Nie można utworzyć profilu - tabela profiles może nie istnieć:', upsertError);
+          // Utwórz minimalny profil w pamięci
+          userProfile = {
+            id: currentUser.id,
+            full_name: currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0] || 'Użytkownik',
+            role: 'user',
+            avatar_url: null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
         }
       }
       setProfile(userProfile || null);
@@ -152,17 +170,22 @@ export const AuthProvider = ({ children }) => {
     return { error };
   }, [toast]);
 
+  const isAdmin = useMemo(() => {
+    return profile?.role === 'admin';
+  }, [profile]);
+
   const value = useMemo(() => ({
     user,
     session,
     profile,
     loading,
+    isAdmin,
     signUp,
     signIn,
     signInWithOAuth,
     signInWithOtp,
     signOut,
-  }), [user, session, profile, loading, signUp, signIn, signInWithOAuth, signInWithOtp, signOut]);
+  }), [user, session, profile, loading, isAdmin, signUp, signIn, signInWithOAuth, signInWithOtp, signOut]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

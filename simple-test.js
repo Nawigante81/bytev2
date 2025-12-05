@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 // Simple test for notify-new-diagnosis function
-const SUPABASE_URL = 'https://glwqpjqvivzkbbvluxdd.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdsd3FwanF2aXZ6a2JidmZ1eGRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzM5MjQ1MTQsImV4cCI6MjA0OTUwMDUxNH0.h0x8c9sS7i5d5d9g8aV5k2g7L5n3H8aG0pGf2j4k6M';
+const SUPABASE_URL = 'https://wllxicmacmfzmqdnovhp.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndsbHhpY21hY21mem1xZG5vdmhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5NDA4MjcsImV4cCI6MjA4MDUxNjgyN30.9uV-EYGP8JvVuqmEPIRyTG7hCHPaKabc8MxnxzHl8ok';
 
 const testPayload = {
   record: {

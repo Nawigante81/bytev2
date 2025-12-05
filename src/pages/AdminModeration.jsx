@@ -31,16 +31,29 @@ const ReviewsTab = () => {
 
   const fetchReviews = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('reviews')
-      .select('*, profiles(display_name)')
-      .order('created_at', { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from('reviews')
+        .select('id, rating, title, message, user_id, status, approved, created_at, updated_at')
+        .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error("Error fetching reviews:", error);
-      toast({ variant: 'destructive', title: 'Błąd pobierania opinii', description: error.message });
-    } else {
-      setReviews(data);
+      if (error) {
+        console.error("Error fetching reviews:", error);
+        toast({ variant: 'destructive', title: 'Błąd pobierania opinii', description: error.message });
+        setReviews([]);
+      } else {
+        // Mapuj dane i dodaj fallback dla profili
+        const reviewsWithProfiles = data.map(review => ({
+          ...review,
+          profiles: {
+            full_name: review.user_id ? `User ${review.user_id.substring(0, 8)}` : 'Anonim'
+          }
+        }));
+        setReviews(reviewsWithProfiles);
+      }
+    } catch (err) {
+      console.error("Exception fetching reviews:", err);
+      setReviews([]);
     }
     setLoading(false);
   }, [toast]);
@@ -95,7 +108,7 @@ const ReviewsTab = () => {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 border-b border-border/50 hover:bg-muted/50">
         <div className="flex-grow">
           <p className="font-bold">{review.title}</p>
-          <p className="text-sm text-muted-foreground">{review.profiles?.display_name || 'Anonim'} - {new Date(review.created_at).toLocaleDateString()}</p>
+          <p className="text-sm text-muted-foreground">{review.profiles?.full_name || 'Anonim'} - {new Date(review.created_at).toLocaleDateString()}</p>
           <p className="text-sm mt-1">{review.message}</p>
         </div>
         <div className="flex-shrink-0 flex flex-col sm:flex-row items-end sm:items-center gap-2 w-full sm:w-auto">
@@ -147,28 +160,33 @@ const TicketsTab = () => {
 
   const fetchTickets = useCallback(async () => {
     setLoading(true);
-    let query = supabase
-      .from('diagnosis_requests')
-      .select('*');
+    try {
+      let query = supabase
+        .from('requests')
+        .select('id, request_id, type, customer_name, customer_email, device_type, device_model, message, status, priority, created_at, updated_at');
 
-    if (statusFilter !== 'ALL') {
-      query = query.eq('status', statusFilter);
-    }
+      if (statusFilter !== 'ALL') {
+        query = query.eq('status', statusFilter);
+      }
 
-    // sorting
-    if (sortBy === 'created_asc') query = query.order('created_at', { ascending: true });
-    else if (sortBy === 'created_desc') query = query.order('created_at', { ascending: false });
-    else if (sortBy === 'device_asc') query = query.order('device', { ascending: true, nullsFirst: true });
-    else if (sortBy === 'device_desc') query = query.order('device', { ascending: false, nullsFirst: false });
+      // sorting
+      if (sortBy === 'created_asc') query = query.order('created_at', { ascending: true });
+      else if (sortBy === 'created_desc') query = query.order('created_at', { ascending: false });
+      else if (sortBy === 'device_asc') query = query.order('device_type', { ascending: true, nullsFirst: true });
+      else if (sortBy === 'device_desc') query = query.order('device_type', { ascending: false, nullsFirst: false });
 
-    const { data, error } = await query;
+      const { data, error } = await query;
 
-    if (error) {
-      console.error("Error fetching tickets:", error);
-      toast({ variant: 'destructive', title: 'Błąd pobierania zgłoszeń', description: error.message });
+      if (error) {
+        console.error("Error fetching tickets:", error);
+        toast({ variant: 'destructive', title: 'Błąd pobierania zgłoszeń', description: error.message });
+        setTickets([]);
+      } else {
+        setTickets(data || []);
+      }
+    } catch (err) {
+      console.error("Exception fetching tickets:", err);
       setTickets([]);
-    } else {
-      setTickets(data);
     }
     setLoading(false);
   }, [toast, statusFilter, sortBy]);
@@ -193,22 +211,26 @@ const TicketsTab = () => {
   const bulkDelete = async () => {
     if (selectedIds.size === 0) return;
     const ids = Array.from(selectedIds);
-    const { error } = await supabase.from('diagnosis_requests').delete().in('id', ids);
-    if (error) {
-      toast({ variant: 'destructive', title: 'Błąd usuwania', description: error.message });
-    } else {
-      toast({ title: `Usunięto ${ids.length} zgłoszeń.` });
-      clearSelection();
-      fetchTickets();
+    try {
+      const { error } = await supabase.from('requests').delete().in('id', ids);
+      if (error) {
+        toast({ variant: 'destructive', title: 'Błąd usuwania', description: error.message });
+      } else {
+        toast({ title: `Usunięto ${ids.length} zgłoszeń.` });
+        clearSelection();
+        fetchTickets();
+      }
+    } catch (err) {
+      toast({ variant: 'destructive', title: 'Błąd usuwania', description: 'Tabela requests może nie istnieć' });
     }
   };
   
   const StatusBadge = ({ status }) => {
     const statusConfig = {
-      new: { label: 'Nowe', className: 'bg-blue-500/20 text-blue-300' },
-      open: { label: 'Otwarte', className: 'bg-cyan-500/20 text-cyan-300' },
-      in_progress: { label: 'W trakcie', className: 'bg-yellow-500/20 text-yellow-300' },
-      closed: { label: 'Zamknięte', className: 'bg-zinc-500/20 text-zinc-300' },
+      nowe: { label: 'Nowe', className: 'bg-blue-500/20 text-blue-300' },
+      otwarte: { label: 'Otwarte', className: 'bg-cyan-500/20 text-cyan-300' },
+      w_realizacji: { label: 'W realizacji', className: 'bg-yellow-500/20 text-yellow-300' },
+      zakonczone: { label: 'Zakończone', className: 'bg-zinc-500/20 text-zinc-300' },
       default: { label: status, className: 'bg-gray-500/20 text-gray-300' },
     };
     const config = statusConfig[status] || statusConfig.default;
@@ -216,15 +238,19 @@ const TicketsTab = () => {
   };
 
   const deleteTicket = async (id) => {
-    const { error } = await supabase
-      .from('diagnosis_requests')
-      .delete()
-      .eq('id', id);
-    if (error) {
-      toast({ variant: 'destructive', title: 'Błąd usuwania zgłoszenia', description: error.message });
-    } else {
-      toast({ title: 'Zgłoszenie zostało usunięte.' });
-      fetchTickets();
+    try {
+      const { error } = await supabase
+        .from('requests')
+        .delete()
+        .eq('id', id);
+      if (error) {
+        toast({ variant: 'destructive', title: 'Błąd usuwania zgłoszenia', description: error.message });
+      } else {
+        toast({ title: 'Zgłoszenie zostało usunięte.' });
+        fetchTickets();
+      }
+    } catch (err) {
+      toast({ variant: 'destructive', title: 'Błąd usuwania zgłoszenia', description: 'Tabela requests może nie istnieć' });
     }
   };
 
@@ -234,8 +260,8 @@ const TicketsTab = () => {
         <div className="flex items-start gap-3 flex-1">
           <input type="checkbox" aria-label={`Zaznacz zgłoszenie ${ticket.id}`} className="mt-1 h-4 w-4" checked={selectedIds.has(ticket.id)} onChange={() => toggleSelect(ticket.id)} />
           <Link to={`/panel/zgloszenia/${ticket.id}`} className="flex-grow focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary rounded">
-            <p className="font-bold">{ticket.device || 'Brak tytułu'}</p>
-            <p className="text-sm text-muted-foreground">{ticket.name} - {new Date(ticket.created_at).toLocaleDateString()}</p>
+            <p className="font-bold">{ticket.device_type || 'Brak tytułu'}</p>
+            <p className="text-sm text-muted-foreground">{ticket.customer_name} - {new Date(ticket.created_at).toLocaleDateString()}</p>
           </Link>
         </div>
         <div className="flex-shrink-0 flex items-center gap-2">
@@ -275,10 +301,10 @@ const TicketsTab = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">Wszystkie</SelectItem>
-              <SelectItem value="new">Nowe</SelectItem>
-              <SelectItem value="open">Otwarte</SelectItem>
-              <SelectItem value="in_progress">W trakcie</SelectItem>
-              <SelectItem value="closed">Zamknięte</SelectItem>
+              <SelectItem value="nowe">Nowe</SelectItem>
+              <SelectItem value="otwarte">Otwarte</SelectItem>
+              <SelectItem value="w_realizacji">W realizacji</SelectItem>
+              <SelectItem value="zakonczone">Zakończone</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -291,8 +317,8 @@ const TicketsTab = () => {
             <SelectContent>
               <SelectItem value="created_desc">Najnowsze najpierw</SelectItem>
               <SelectItem value="created_asc">Najstarsze najpierw</SelectItem>
-              <SelectItem value="device_asc">Urządzenie A→Z</SelectItem>
-              <SelectItem value="device_desc">Urządzenie Z→A</SelectItem>
+              <SelectItem value="device_asc">Typ urządzenia A→Z</SelectItem>
+              <SelectItem value="device_desc">Typ urządzenia Z→A</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -360,10 +386,10 @@ const CommentsTab = () => {
     if (userIds.length > 0) {
       const { data: profs, error: perr } = await supabase
         .from('profiles')
-        .select('id, display_name')
+        .select('id, full_name')
         .in('id', userIds);
       if (!perr && Array.isArray(profs)) {
-        profilesMap = new Map(profs.map((p) => [p.id, p.display_name]));
+        profilesMap = new Map(profs.map((p) => [p.id, p.full_name]));
       }
     }
 

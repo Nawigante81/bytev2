@@ -46,17 +46,29 @@ const ReviewsCarousel = () => {
 
   const fetchReviews = useCallback(async () => {
     setLoading(true);
+    // Pobieramy opinie bez zależności od tabeli profiles
     const { data, error } = await supabase
       .from('reviews')
-      .select('*, profile:profiles(display_name)')
+      .select('id, rating, title, message, created_at, user_id')
       .eq('approved', true)
       .order('created_at', { ascending: false });
 
     if (error) {
-      toast({ variant: 'destructive', title: 'Błąd pobierania opinii', description: error.message });
-      setReviews(mockReviews);
+      console.warn('Błąd pobierania opinii z bazy:', error.message);
+      // Używamy mockReviews z dodatkowymi polami potrzebnymi dla komponentu
+      setReviews(mockReviews.map(review => ({
+        ...review,
+        user_id: null // Brak powiązania z user_id dla mock danych
+      })));
     } else {
-      setReviews(data.length > 0 ? data : mockReviews);
+      // Mapujemy dane z bazy do struktury oczekiwanej przez komponent
+      const mappedReviews = data.map(review => ({
+        ...review,
+        profile: {
+          display_name: `Użytkownik ${review.user_id ? review.user_id.substring(0, 8) : 'Anonim'}`
+        }
+      }));
+      setReviews(mappedReviews.length > 0 ? mappedReviews : mockReviews);
     }
     setLoading(false);
   }, [toast]);

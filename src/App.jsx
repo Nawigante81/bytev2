@@ -35,6 +35,7 @@ import Store from '@/pages/Store';
 import ProductDetailPage from '@/pages/ProductDetailPage';
 import SuccessPage from '@/pages/SuccessPage';
 import AdminServices from '@/pages/AdminServices';
+import UserManagement from '@/pages/UserManagement';
 import PrivacyPolicy from '@/pages/PrivacyPolicy';
 import Terms from '@/pages/Terms';
 import Pricing from '@/pages/Pricing';
@@ -164,6 +165,7 @@ function App() {
             <Route path="/admin/tickets" element={<ProtectedRoute adminOnly><AdminTickets /></ProtectedRoute>} />
             <Route path="/admin/moderacja" element={<ProtectedRoute adminOnly><AdminModeration /></ProtectedRoute>} />
             <Route path="/admin/uslugi" element={<ProtectedRoute adminOnly><AdminServices /></ProtectedRoute>} />
+            <Route path="/admin/uzytkownicy" element={<ProtectedRoute adminOnly><UserManagement /></ProtectedRoute>} />
 
             <Route path="*" element={<NotFound />} />
           </Routes>
