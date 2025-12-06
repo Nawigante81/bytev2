@@ -36,7 +36,7 @@ $$ LANGUAGE plpgsql;
 -- =====================================================
 -- 2. CENTRALNA TABELA: requests
 -- =====================================================
-CREATE TABLE requests (
+CREATE TABLE IF NOT EXISTS requests (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     
     -- Unikalny identyfikator zgłoszenia
@@ -83,17 +83,47 @@ CREATE TABLE requests (
 -- =====================================================
 
 -- Dodanie request_id do tabeli bookings
-ALTER TABLE bookings ADD COLUMN request_id UUID REFERENCES requests(id);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'bookings' AND column_name = 'request_id'
+    ) THEN
+        ALTER TABLE bookings ADD COLUMN request_id UUID REFERENCES requests(id);
+    END IF;
+END $$;
 
 -- Dodanie request_id do tabeli repairs  
-ALTER TABLE repairs ADD COLUMN request_id UUID REFERENCES requests(id);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'repairs' AND column_name = 'request_id'
+    ) THEN
+        ALTER TABLE repairs ADD COLUMN request_id UUID REFERENCES requests(id);
+    END IF;
+END $$;
 
 -- =====================================================
 -- 4. POLA PUBLICZNE DLA ŚLEDZENIA NAPRAW
 -- =====================================================
 
-ALTER TABLE repairs ADD COLUMN public_code VARCHAR(12) UNIQUE;
-ALTER TABLE repairs ADD COLUMN secret_token VARCHAR(64) UNIQUE;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'repairs' AND column_name = 'public_code'
+    ) THEN
+        ALTER TABLE repairs ADD COLUMN public_code VARCHAR(12) UNIQUE;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'repairs' AND column_name = 'secret_token'
+    ) THEN
+        ALTER TABLE repairs ADD COLUMN secret_token VARCHAR(64) UNIQUE;
+    END IF;
+END $$;
 
 -- =====================================================
 -- 5. TRIGGERY AUTOMATYCZNE
@@ -111,10 +141,17 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER set_request_id_trigger 
-    BEFORE INSERT OR UPDATE ON requests 
-    FOR EACH ROW 
-    EXECUTE FUNCTION set_request_id();
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'set_request_id_trigger'
+    ) THEN
+        CREATE TRIGGER set_request_id_trigger 
+            BEFORE INSERT OR UPDATE ON requests 
+            FOR EACH ROW 
+            EXECUTE FUNCTION set_request_id();
+    END IF;
+END $$;
 
 -- Trigger do automatycznego generowania pól publicznych dla napraw
 CREATE OR REPLACE FUNCTION set_repair_public_fields()
@@ -133,35 +170,42 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER set_repair_public_fields_trigger 
-    BEFORE INSERT OR UPDATE ON repairs 
-    FOR EACH ROW 
-    EXECUTE FUNCTION set_repair_public_fields();
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'set_repair_public_fields_trigger'
+    ) THEN
+        CREATE TRIGGER set_repair_public_fields_trigger 
+            BEFORE INSERT OR UPDATE ON repairs 
+            FOR EACH ROW 
+            EXECUTE FUNCTION set_repair_public_fields();
+    END IF;
+END $$;
 
 -- =====================================================
 -- 6. INDEKSY DLA WYDAJNOŚCI
 -- =====================================================
 
 -- Indeksy dla tabeli requests
-CREATE INDEX idx_requests_request_id ON requests(request_id);
-CREATE INDEX idx_requests_customer_email ON requests(customer_email);
-CREATE INDEX idx_requests_type ON requests(type);
-CREATE INDEX idx_requests_status ON requests(status);
-CREATE INDEX idx_requests_priority ON requests(priority);
-CREATE INDEX idx_requests_created_at ON requests(created_at);
-CREATE INDEX idx_requests_source_page ON requests(source_page);
+CREATE INDEX IF NOT EXISTS idx_requests_request_id ON requests(request_id);
+CREATE INDEX IF NOT EXISTS idx_requests_customer_email ON requests(customer_email);
+CREATE INDEX IF NOT EXISTS idx_requests_type ON requests(type);
+CREATE INDEX IF NOT EXISTS idx_requests_status ON requests(status);
+CREATE INDEX IF NOT EXISTS idx_requests_priority ON requests(priority);
+CREATE INDEX IF NOT EXISTS idx_requests_created_at ON requests(created_at);
+CREATE INDEX IF NOT EXISTS idx_requests_source_page ON requests(source_page);
 
 -- Indeksy złożone dla częstych zapytań
-CREATE INDEX idx_requests_status_created ON requests(status, created_at);
-CREATE INDEX idx_requests_type_status ON requests(type, status);
+CREATE INDEX IF NOT EXISTS idx_requests_status_created ON requests(status, created_at);
+CREATE INDEX IF NOT EXISTS idx_requests_type_status ON requests(type, status);
 
 -- Indeksy dla tabeli repairs - pola publiczne
-CREATE INDEX idx_repairs_public_code ON repairs(public_code);
-CREATE INDEX idx_repairs_secret_token ON repairs(secret_token);
-CREATE INDEX idx_repairs_request_id ON repairs(request_id);
+CREATE INDEX IF NOT EXISTS idx_repairs_public_code ON repairs(public_code);
+CREATE INDEX IF NOT EXISTS idx_repairs_secret_token ON repairs(secret_token);
+CREATE INDEX IF NOT EXISTS idx_repairs_request_id ON repairs(request_id);
 
 -- Indeksy dla tabeli bookings - request_id
-CREATE INDEX idx_bookings_request_id ON bookings(request_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_request_id ON bookings(request_id);
 
 -- =====================================================
 -- 7. FUNKCJE DLA APLIKACJI

@@ -1,0 +1,636 @@
+total_exec_time,prop_exec_time,ncalls,sync_io_time,query
+00:00:04.060506,12.0%,37,00:00:00,"with f as (
+      
+-- CTE with sane arg_modes, arg_names, and arg_types.
+-- All three are always of the same length.
+-- All three include all args, including OUT and TABLE args.
+with functions as (
+  select
+    *,
+    -- proargmodes is null when all arg modes are IN
+    coalesce(
+      p.proargmodes,
+      array_fill($1::text, array[cardinality(coalesce(p.proallargtypes, p.proargtypes))])
+    ) as arg_modes,
+    -- proargnames is null when all args are unnamed
+    coalesce(
+      p.proargnames,
+      array_fill($2::text, array[cardinality(coalesce(p.proallargtypes, p.proargtypes))])
+    ) as arg_names,
+    -- proallargtypes is null when all arg modes are IN
+    coalesce(p.proallargtypes, p.proargtypes) as arg_types,
+    array_cat(
+      array_fill($3, array[pronargs - pronargdefaults]),
+      array_fill($4, array[pronargdefaults])) as arg_has_defaults
+  from
+    pg_proc as p
+  where
+    p.prokind = $5
+)
+select
+  f.oid as id,
+  n.nspname as schema,
+  f.proname as name,
+  l.lanname as language,
+  case
+    when l.lanname = $6 then $7
+    else f.prosrc
+  end as definition,
+  case
+    when l.lanname = $8 then f.prosrc
+    else pg_get_functiondef(f.oid)
+  end as complete_statement,
+  coalesce(f_args.args, $9) as args,
+  pg_get_function_arguments(f.oid) as argument_types,
+  pg_get_function_identity_arguments(f.oid) as identity_argument_types,
+  f.prorettype as return_type_id,
+  pg_get_function_result(f.oid) as return_type,
+  nullif(rt.typrelid, $10) as return_type_relation_id,
+  f.proretset as is_set_returning_function,
+  case
+    when f.provolatile = $11 then $12
+    when f.provolatile = $13 then $14
+    when f.provolatile = $15 then $16
+  end as behavior,
+  f.prosecdef as security_definer,
+  f_config.config_params as config_params
+from
+  functions f
+  left join pg_namespace n on f.pronamespace = n.oid
+  left join pg_language l on f.prolang = l.oid
+  left join pg_type rt on rt.oid = f.prorettype
+  left join (
+    select
+      oid,
+      jsonb_object_agg(param, value) filter (where param is not null) as config_params
+    from
+      (
+        select
+          oid,
+          (string_to_array(unnest(proconfig), $17))[$18] as param,
+          (string_to_array(unnest(proconfig), $19))[$20] as value
+        from
+          functions
+      ) as t
+    group by
+      oid
+  ) f_config on f_config.oid = f.oid
+  left join (
+    select
+      oid,
+      jsonb_agg(jsonb_build_object(
+        $21, t2.mode,
+        $22, name,
+        $23, type_id,
+        -- Cast null into false boolean
+        $24, COALESCE(has_default, $25)
+      )) as args
+    from
+      (
+        select
+          oid,
+          unnest(arg_modes) as mode,
+          unnest(arg_names) as name,
+          -- Coming from: coalesce(p.proallargtypes, p.proargtypes) postgres won't automatically assume
+          -- integer, we need to cast it to be properly parsed
+          unnest(arg_types)::int8 as type_id,
+          unnest(arg_has_defaults) as has_default
+        from
+          functions
+      ) as t1,
+      lateral (
+        select
+          case
+            when t1.mode = $26 then $27
+            when t1.mode = $28 then $29
+            when t1.mode = $30 then $31
+            when t1.mode = $32 then $33
+            else $34
+          end as mode
+      ) as t2
+    group by
+      t1.oid
+  ) f_args on f_args.oid = f.oid
+
+    )
+    select
+      f.*
+    from f
+   where schema NOT IN ($35,$36,$37)
+
+-- source: dashboard
+-- user: 0ba615d1-de8c-486e-861f-eb29f511edee
+-- date: 2025-12-05T17:53:14.050Z"
+00:00:01.351206,4.0%,1,00:00:00,"with records as (
+  select
+    c.oid::int8 as ""id"",
+    case c.relkind
+      when $1 then pg_temp.pg_get_tabledef(
+        concat(nc.nspname),
+        concat(c.relname),
+        $2,
+        $3,
+        $4
+      )
+      when $5 then concat(
+        $6, concat(nc.nspname, $7, c.relname), $8,
+        pg_get_viewdef(concat(nc.nspname, $9, c.relname), $10)
+      )
+      when $11 then concat(
+        $12, concat(nc.nspname, $13, c.relname), $14,
+        pg_get_viewdef(concat(nc.nspname, $15, c.relname), $16)
+      )
+      when $17 then concat($18, nc.nspname, $19, c.relname, $20)
+      when $21 then pg_temp.pg_get_tabledef(
+        concat(nc.nspname),
+        concat(c.relname),
+        $22,
+        $23,
+        $24
+      )
+    end as ""sql""
+  from
+    pg_namespace nc
+    join pg_class c on nc.oid = c.relnamespace
+  where
+    c.relkind in ($25, $26, $27, $28, $29)
+    and not pg_is_other_temp_schema(nc.oid)
+    and (
+      pg_has_role(c.relowner, $30)
+      or has_table_privilege(
+        c.oid,
+        $31
+      )
+      or has_any_column_privilege(c.oid, $32)
+    )
+    and nc.nspname IN ($33)
+  order by c.relname asc
+  limit $34
+  offset $35
+)
+select
+  jsonb_build_object(
+    $36, coalesce(jsonb_agg(
+      jsonb_build_object(
+        $37, r.id,
+        $38, r.sql
+      )
+    ), $39::jsonb)
+  ) ""data""
+from records r"
+00:00:01.325978,3.9%,1,00:00:00,"with records as (
+  select
+    c.oid::int8 as ""id"",
+    case c.relkind
+      when $1 then pg_temp.pg_get_tabledef(
+        concat(nc.nspname),
+        concat(c.relname),
+        $2,
+        $3,
+        $4
+      )
+      when $5 then concat(
+        $6, concat(nc.nspname, $7, c.relname), $8,
+        pg_get_viewdef(concat(nc.nspname, $9, c.relname), $10)
+      )
+      when $11 then concat(
+        $12, concat(nc.nspname, $13, c.relname), $14,
+        pg_get_viewdef(concat(nc.nspname, $15, c.relname), $16)
+      )
+      when $17 then concat($18, nc.nspname, $19, c.relname, $20)
+      when $21 then pg_temp.pg_get_tabledef(
+        concat(nc.nspname),
+        concat(c.relname),
+        $22,
+        $23,
+        $24
+      )
+    end as ""sql""
+  from
+    pg_namespace nc
+    join pg_class c on nc.oid = c.relnamespace
+  where
+    c.relkind in ($25, $26, $27, $28, $29)
+    and not pg_is_other_temp_schema(nc.oid)
+    and (
+      pg_has_role(c.relowner, $30)
+      or has_table_privilege(
+        c.oid,
+        $31
+      )
+      or has_any_column_privilege(c.oid, $32)
+    )
+    and nc.nspname IN ($33)
+  order by c.relname asc
+  limit $34
+  offset $35
+)
+select
+  jsonb_build_object(
+    $36, coalesce(jsonb_agg(
+      jsonb_build_object(
+        $37, r.id,
+        $38, r.sql
+      )
+    ), $39::jsonb)
+  ) ""data""
+from records r"
+00:00:01.248873,3.7%,1,00:00:00,"with records as (
+  select
+    c.oid::int8 as ""id"",
+    case c.relkind
+      when $1 then pg_temp.pg_get_tabledef(
+        concat(nc.nspname),
+        concat(c.relname),
+        $2,
+        $3,
+        $4
+      )
+      when $5 then concat(
+        $6, concat(nc.nspname, $7, c.relname), $8,
+        pg_get_viewdef(concat(nc.nspname, $9, c.relname), $10)
+      )
+      when $11 then concat(
+        $12, concat(nc.nspname, $13, c.relname), $14,
+        pg_get_viewdef(concat(nc.nspname, $15, c.relname), $16)
+      )
+      when $17 then concat($18, nc.nspname, $19, c.relname, $20)
+      when $21 then pg_temp.pg_get_tabledef(
+        concat(nc.nspname),
+        concat(c.relname),
+        $22,
+        $23,
+        $24
+      )
+    end as ""sql""
+  from
+    pg_namespace nc
+    join pg_class c on nc.oid = c.relnamespace
+  where
+    c.relkind in ($25, $26, $27, $28, $29)
+    and not pg_is_other_temp_schema(nc.oid)
+    and (
+      pg_has_role(c.relowner, $30)
+      or has_table_privilege(
+        c.oid,
+        $31
+      )
+      or has_any_column_privilege(c.oid, $32)
+    )
+    and nc.nspname IN ($33)
+  order by c.relname asc
+  limit $34
+  offset $35
+)
+select
+  jsonb_build_object(
+    $36, coalesce(jsonb_agg(
+      jsonb_build_object(
+        $37, r.id,
+        $38, r.sql
+      )
+    ), $39::jsonb)
+  ) ""data""
+from records r"
+00:00:01.234024,3.6%,1,00:00:00,"with records as (
+  select
+    c.oid::int8 as ""id"",
+    case c.relkind
+      when $1 then pg_temp.pg_get_tabledef(
+        concat(nc.nspname),
+        concat(c.relname),
+        $2,
+        $3,
+        $4
+      )
+      when $5 then concat(
+        $6, concat(nc.nspname, $7, c.relname), $8,
+        pg_get_viewdef(concat(nc.nspname, $9, c.relname), $10)
+      )
+      when $11 then concat(
+        $12, concat(nc.nspname, $13, c.relname), $14,
+        pg_get_viewdef(concat(nc.nspname, $15, c.relname), $16)
+      )
+      when $17 then concat($18, nc.nspname, $19, c.relname, $20)
+      when $21 then pg_temp.pg_get_tabledef(
+        concat(nc.nspname),
+        concat(c.relname),
+        $22,
+        $23,
+        $24
+      )
+    end as ""sql""
+  from
+    pg_namespace nc
+    join pg_class c on nc.oid = c.relnamespace
+  where
+    c.relkind in ($25, $26, $27, $28, $29)
+    and not pg_is_other_temp_schema(nc.oid)
+    and (
+      pg_has_role(c.relowner, $30)
+      or has_table_privilege(
+        c.oid,
+        $31
+      )
+      or has_any_column_privilege(c.oid, $32)
+    )
+    and nc.nspname IN ($33)
+  order by c.relname asc
+  limit $34
+  offset $35
+)
+select
+  jsonb_build_object(
+    $36, coalesce(jsonb_agg(
+      jsonb_build_object(
+        $37, r.id,
+        $38, r.sql
+      )
+    ), $39::jsonb)
+  ) ""data""
+from records r"
+00:00:01.231586,3.6%,1,00:00:00,"with records as (
+  select
+    c.oid::int8 as ""id"",
+    case c.relkind
+      when $1 then pg_temp.pg_get_tabledef(
+        concat(nc.nspname),
+        concat(c.relname),
+        $2,
+        $3,
+        $4
+      )
+      when $5 then concat(
+        $6, concat(nc.nspname, $7, c.relname), $8,
+        pg_get_viewdef(concat(nc.nspname, $9, c.relname), $10)
+      )
+      when $11 then concat(
+        $12, concat(nc.nspname, $13, c.relname), $14,
+        pg_get_viewdef(concat(nc.nspname, $15, c.relname), $16)
+      )
+      when $17 then concat($18, nc.nspname, $19, c.relname, $20)
+      when $21 then pg_temp.pg_get_tabledef(
+        concat(nc.nspname),
+        concat(c.relname),
+        $22,
+        $23,
+        $24
+      )
+    end as ""sql""
+  from
+    pg_namespace nc
+    join pg_class c on nc.oid = c.relnamespace
+  where
+    c.relkind in ($25, $26, $27, $28, $29)
+    and not pg_is_other_temp_schema(nc.oid)
+    and (
+      pg_has_role(c.relowner, $30)
+      or has_table_privilege(
+        c.oid,
+        $31
+      )
+      or has_any_column_privilege(c.oid, $32)
+    )
+    and nc.nspname IN ($33)
+  order by c.relname asc
+  limit $34
+  offset $35
+)
+select
+  jsonb_build_object(
+    $36, coalesce(jsonb_agg(
+      jsonb_build_object(
+        $37, r.id,
+        $38, r.sql
+      )
+    ), $39::jsonb)
+  ) ""data""
+from records r"
+00:00:01.231379,3.6%,1,00:00:00,"with records as (
+  select
+    c.oid::int8 as ""id"",
+    case c.relkind
+      when $1 then pg_temp.pg_get_tabledef(
+        concat(nc.nspname),
+        concat(c.relname),
+        $2,
+        $3,
+        $4
+      )
+      when $5 then concat(
+        $6, concat(nc.nspname, $7, c.relname), $8,
+        pg_get_viewdef(concat(nc.nspname, $9, c.relname), $10)
+      )
+      when $11 then concat(
+        $12, concat(nc.nspname, $13, c.relname), $14,
+        pg_get_viewdef(concat(nc.nspname, $15, c.relname), $16)
+      )
+      when $17 then concat($18, nc.nspname, $19, c.relname, $20)
+      when $21 then pg_temp.pg_get_tabledef(
+        concat(nc.nspname),
+        concat(c.relname),
+        $22,
+        $23,
+        $24
+      )
+    end as ""sql""
+  from
+    pg_namespace nc
+    join pg_class c on nc.oid = c.relnamespace
+  where
+    c.relkind in ($25, $26, $27, $28, $29)
+    and not pg_is_other_temp_schema(nc.oid)
+    and (
+      pg_has_role(c.relowner, $30)
+      or has_table_privilege(
+        c.oid,
+        $31
+      )
+      or has_any_column_privilege(c.oid, $32)
+    )
+    and nc.nspname IN ($33)
+  order by c.relname asc
+  limit $34
+  offset $35
+)
+select
+  jsonb_build_object(
+    $36, coalesce(jsonb_agg(
+      jsonb_build_object(
+        $37, r.id,
+        $38, r.sql
+      )
+    ), $39::jsonb)
+  ) ""data""
+from records r"
+00:00:01.23068,3.6%,1,00:00:00,"with records as (
+  select
+    c.oid::int8 as ""id"",
+    case c.relkind
+      when $1 then pg_temp.pg_get_tabledef(
+        concat(nc.nspname),
+        concat(c.relname),
+        $2,
+        $3,
+        $4
+      )
+      when $5 then concat(
+        $6, concat(nc.nspname, $7, c.relname), $8,
+        pg_get_viewdef(concat(nc.nspname, $9, c.relname), $10)
+      )
+      when $11 then concat(
+        $12, concat(nc.nspname, $13, c.relname), $14,
+        pg_get_viewdef(concat(nc.nspname, $15, c.relname), $16)
+      )
+      when $17 then concat($18, nc.nspname, $19, c.relname, $20)
+      when $21 then pg_temp.pg_get_tabledef(
+        concat(nc.nspname),
+        concat(c.relname),
+        $22,
+        $23,
+        $24
+      )
+    end as ""sql""
+  from
+    pg_namespace nc
+    join pg_class c on nc.oid = c.relnamespace
+  where
+    c.relkind in ($25, $26, $27, $28, $29)
+    and not pg_is_other_temp_schema(nc.oid)
+    and (
+      pg_has_role(c.relowner, $30)
+      or has_table_privilege(
+        c.oid,
+        $31
+      )
+      or has_any_column_privilege(c.oid, $32)
+    )
+    and nc.nspname IN ($33)
+  order by c.relname asc
+  limit $34
+  offset $35
+)
+select
+  jsonb_build_object(
+    $36, coalesce(jsonb_agg(
+      jsonb_build_object(
+        $37, r.id,
+        $38, r.sql
+      )
+    ), $39::jsonb)
+  ) ""data""
+from records r"
+00:00:01.220749,3.6%,1,00:00:00,"with records as (
+  select
+    c.oid::int8 as ""id"",
+    case c.relkind
+      when $1 then pg_temp.pg_get_tabledef(
+        concat(nc.nspname),
+        concat(c.relname),
+        $2,
+        $3,
+        $4
+      )
+      when $5 then concat(
+        $6, concat(nc.nspname, $7, c.relname), $8,
+        pg_get_viewdef(concat(nc.nspname, $9, c.relname), $10)
+      )
+      when $11 then concat(
+        $12, concat(nc.nspname, $13, c.relname), $14,
+        pg_get_viewdef(concat(nc.nspname, $15, c.relname), $16)
+      )
+      when $17 then concat($18, nc.nspname, $19, c.relname, $20)
+      when $21 then pg_temp.pg_get_tabledef(
+        concat(nc.nspname),
+        concat(c.relname),
+        $22,
+        $23,
+        $24
+      )
+    end as ""sql""
+  from
+    pg_namespace nc
+    join pg_class c on nc.oid = c.relnamespace
+  where
+    c.relkind in ($25, $26, $27, $28, $29)
+    and not pg_is_other_temp_schema(nc.oid)
+    and (
+      pg_has_role(c.relowner, $30)
+      or has_table_privilege(
+        c.oid,
+        $31
+      )
+      or has_any_column_privilege(c.oid, $32)
+    )
+    and nc.nspname IN ($33)
+  order by c.relname asc
+  limit $34
+  offset $35
+)
+select
+  jsonb_build_object(
+    $36, coalesce(jsonb_agg(
+      jsonb_build_object(
+        $37, r.id,
+        $38, r.sql
+      )
+    ), $39::jsonb)
+  ) ""data""
+from records r"
+00:00:01.219634,3.6%,1,00:00:00,"with records as (
+  select
+    c.oid::int8 as ""id"",
+    case c.relkind
+      when $1 then pg_temp.pg_get_tabledef(
+        concat(nc.nspname),
+        concat(c.relname),
+        $2,
+        $3,
+        $4
+      )
+      when $5 then concat(
+        $6, concat(nc.nspname, $7, c.relname), $8,
+        pg_get_viewdef(concat(nc.nspname, $9, c.relname), $10)
+      )
+      when $11 then concat(
+        $12, concat(nc.nspname, $13, c.relname), $14,
+        pg_get_viewdef(concat(nc.nspname, $15, c.relname), $16)
+      )
+      when $17 then concat($18, nc.nspname, $19, c.relname, $20)
+      when $21 then pg_temp.pg_get_tabledef(
+        concat(nc.nspname),
+        concat(c.relname),
+        $22,
+        $23,
+        $24
+      )
+    end as ""sql""
+  from
+    pg_namespace nc
+    join pg_class c on nc.oid = c.relnamespace
+  where
+    c.relkind in ($25, $26, $27, $28, $29)
+    and not pg_is_other_temp_schema(nc.oid)
+    and (
+      pg_has_role(c.relowner, $30)
+      or has_table_privilege(
+        c.oid,
+        $31
+      )
+      or has_any_column_privilege(c.oid, $32)
+    )
+    and nc.nspname IN ($33)
+  order by c.relname asc
+  limit $34
+  offset $35
+)
+select
+  jsonb_build_object(
+    $36, coalesce(jsonb_agg(
+      jsonb_build_object(
+        $37, r.id,
+        $38, r.sql
+      )
+    ), $39::jsonb)
+  ) ""data""
+from records r"

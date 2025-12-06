@@ -1,0 +1,11 @@
+name,table_size,index_size,total_size,estimated_row_count,seq_scans
+public.repairs,8192 bytes,96 kB,104 kB,0,20
+public.requests,8192 bytes,88 kB,96 kB,0,23
+public.profiles,16 kB,48 kB,64 kB,0,42
+public.bookings,8192 bytes,56 kB,64 kB,0,18
+public.notifications,8192 bytes,56 kB,64 kB,0,17
+public.customers,16 kB,48 kB,64 kB,0,17
+public.service_catalog,16 kB,32 kB,48 kB,12,11
+public.email_notifications,8192 bytes,40 kB,48 kB,0,16
+public.repair_timeline,8192 bytes,24 kB,32 kB,0,17
+public.reviews,8192 bytes,24 kB,32 kB,0,6

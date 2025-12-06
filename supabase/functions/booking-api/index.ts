@@ -37,6 +37,46 @@ interface RepairRequest {
   priority?: string;
 }
 
+interface RequestRecordInput {
+  requestType: string;
+  sourcePage: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone?: string;
+  deviceType?: string;
+  deviceModel?: string;
+  deviceDescription?: string;
+  message?: string;
+  priority?: string;
+  sourceUrl?: string;
+  userAgent?: string;
+  consent?: boolean;
+}
+
+const REPAIR_STATUS_VALUES = [
+  'new_request',
+  'open',
+  'waiting_for_parts',
+  'in_repair',
+  'repair_completed',
+  'ready_for_pickup'
+] as const;
+
+const REPAIR_STATUS_ALIAS: Record<string, typeof REPAIR_STATUS_VALUES[number]> = {
+  received: 'new_request',
+  new: 'new_request',
+  diagnosed: 'open',
+  open: 'open',
+  waiting_for_parts: 'waiting_for_parts',
+  waiting: 'waiting_for_parts',
+  in_progress: 'in_repair',
+  testing: 'in_repair',
+  completed: 'repair_completed',
+  closed: 'repair_completed',
+  ready: 'ready_for_pickup',
+  ready_for_pickup: 'ready_for_pickup'
+};
+
 serve(async (req: Request) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -120,6 +160,22 @@ async function createBooking(supabaseClient: any, req: Request) {
   }
 
   try {
+    const requestId = await createRequestRecord(supabaseClient, {
+      requestType: 'booking',
+      sourcePage: 'booking_api',
+      customerName: bookingData.customerName,
+      customerEmail: bookingData.customerEmail,
+      customerPhone: bookingData.customerPhone,
+      deviceType: bookingData.deviceType,
+      deviceModel: bookingData.deviceModel,
+      deviceDescription: bookingData.notes || bookingData.serviceName,
+      message: bookingData.notes,
+      priority: 'normalny',
+      sourceUrl: req.headers.get('origin') ?? undefined,
+      userAgent: req.headers.get('user-agent') ?? undefined,
+      consent: true
+    })
+
     // Sprawdź dostępność terminu
     const { data: conflictingBookings } = await supabaseClient
       .from('bookings')
@@ -150,7 +206,8 @@ async function createBooking(supabaseClient: any, req: Request) {
         booking_time: bookingData.bookingTime,
         duration_minutes: bookingData.durationMinutes,
         notes: bookingData.notes,
-        status: 'confirmed'
+        status: 'confirmed',
+        request_id: requestId
       })
       .select()
       .single()
@@ -177,7 +234,8 @@ async function createBooking(supabaseClient: any, req: Request) {
             price: 0, // Cena będzie określana osobno
             device: bookingData.deviceType,
             phone: bookingData.customerPhone,
-            bookingId: booking.booking_id
+            bookingId: booking.booking_id,
+            requestId
           }
         })
       })
@@ -198,6 +256,7 @@ async function createBooking(supabaseClient: any, req: Request) {
       recipient_email: bookingData.customerEmail,
       recipient_name: bookingData.customerName,
       booking_id: booking.id,
+      request_id: requestId,
       subject: `Potwierdzenie rezerwacji #${booking.booking_id} - ByteClinic`
     })
 
@@ -287,6 +346,24 @@ async function createRepair(supabaseClient: any, req: Request) {
   }
 
   try {
+    const requestId = await createRequestRecord(supabaseClient, {
+      requestType: 'repair',
+      sourcePage: 'repairs_api',
+      customerName: repairData.customerName,
+      customerEmail: repairData.customerEmail,
+      customerPhone: repairData.customerPhone,
+      deviceType: repairData.deviceType,
+      deviceModel: repairData.deviceModel,
+      deviceDescription: repairData.deviceDescription,
+      message: repairData.issueDescription,
+      priority: repairData.priority || 'normalny',
+      sourceUrl: req.headers.get('origin') ?? undefined,
+      userAgent: req.headers.get('user-agent') ?? undefined,
+      consent: true
+    })
+
+    const initialStatus = 'new_request'
+    const initialProgress = getProgressForStatus(initialStatus)
     const { data: repair, error: repairError } = await supabaseClient
       .from('repairs')
       .insert({
@@ -298,8 +375,9 @@ async function createRepair(supabaseClient: any, req: Request) {
         device_description: repairData.deviceDescription,
         issue_description: repairData.issueDescription,
         priority: repairData.priority || 'normal',
-        status: 'received',
-        progress: 0
+        status: initialStatus,
+        progress: initialProgress,
+        request_id: requestId
       })
       .select()
       .single()
@@ -309,9 +387,9 @@ async function createRepair(supabaseClient: any, req: Request) {
     // Dodaj pierwszy wpis do timeline
     await supabaseClient.from('repair_timeline').insert({
       repair_id: repair.id,
-      status: 'received',
-      title: 'Otrzymano zlecenie',
-      description: 'Urządzenie zostało przyjęte do serwisu',
+      status: initialStatus,
+      title: getStatusTitle(initialStatus),
+      description: getStatusDescription(initialStatus),
       technician_name: 'System'
     })
 
@@ -396,9 +474,21 @@ async function getRepairById(supabaseClient: any, repairId: string, req: Request
 async function updateRepairStatus(supabaseClient: any, repairId: string, req: Request) {
   const requestData = await req.json()
   const { status, progress, notes, estimatedCompletion } = requestData
+  const normalizedStatus = status ? normalizeRepairStatus(status) : undefined
+  if (status && !normalizedStatus) {
+    return new Response(
+      JSON.stringify({ error: { code: 'INVALID_STATUS', message: 'Nieobsługiwany status naprawy' } }),
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
+  }
   
   const updateData: any = {}
-  if (status) updateData.status = status
+  if (normalizedStatus) {
+    updateData.status = normalizedStatus
+    if (progress === undefined) {
+      updateData.progress = getProgressForStatus(normalizedStatus)
+    }
+  }
   if (progress !== undefined) updateData.progress = progress
   if (notes) updateData.admin_notes = notes
   if (estimatedCompletion) updateData.estimated_completion = estimatedCompletion
@@ -412,13 +502,13 @@ async function updateRepairStatus(supabaseClient: any, repairId: string, req: Re
 
   if (error) throw error
 
-  // Dodaj wpis do timeline jeśli status się zmienił
-  if (status) {
+  // Dodaj wpis do timeline, jeśli to tylko notatka
+  if (!normalizedStatus && notes) {
     await supabaseClient.from('repair_timeline').insert({
       repair_id: repair.id,
-      status: status,
-      title: getStatusTitle(status),
-      description: notes || getStatusDescription(status),
+      status: repair.status,
+      title: 'Aktualizacja naprawy',
+      description: notes,
       technician_name: 'System'
     })
   }
@@ -506,32 +596,85 @@ function validateRepairData(data: RepairRequest): { isValid: boolean; errors: st
   return { isValid: errors.length === 0, errors }
 }
 
-function getStatusTitle(status: string): string {
-  const titles: Record<string, string> = {
-    'received': 'Otrzymano zlecenie',
-    'diagnosed': 'Diagnoza wykonana',
-    'in_progress': 'Rozpoczęto naprawę',
-    'testing': 'Testowanie',
-    'completed': 'Naprawa zakończona',
-    'ready': 'Gotowe do odbioru',
-    'delivered': 'Wydano klientowi',
-    'cancelled': 'Anulowano'
+const STATUS_TITLE_MAP: Record<typeof REPAIR_STATUS_VALUES[number], string> = {
+  new_request: 'Nowe zgłoszenie',
+  open: 'Zgłoszenie otwarte',
+  waiting_for_parts: 'Oczekiwanie na części',
+  in_repair: 'Naprawa w toku',
+  repair_completed: 'Naprawa zakończona',
+  ready_for_pickup: 'Gotowe do odbioru'
+}
+
+const STATUS_DESCRIPTION_MAP: Record<typeof REPAIR_STATUS_VALUES[number], string> = {
+  new_request: 'Urządzenie zostało przyjęte do serwisu.',
+  open: 'Zgłoszenie zostało przypisane do technika.',
+  waiting_for_parts: 'Czekamy na dostawę części potrzebnych do naprawy.',
+  in_repair: 'Technicy pracują nad Twoim urządzeniem.',
+  repair_completed: 'Naprawa została zakończona i trwa testowanie końcowe.',
+  ready_for_pickup: 'Urządzenie czeka na odbiór w serwisie.'
+}
+
+const STATUS_PROGRESS_MAP: Record<typeof REPAIR_STATUS_VALUES[number], number> = {
+  new_request: 10,
+  open: 25,
+  waiting_for_parts: 40,
+  in_repair: 70,
+  repair_completed: 90,
+  ready_for_pickup: 100
+}
+
+function normalizeRepairStatus(status?: string): typeof REPAIR_STATUS_VALUES[number] | undefined {
+  if (!status) return undefined
+  const normalized = status as typeof REPAIR_STATUS_VALUES[number]
+  if (REPAIR_STATUS_VALUES.includes(normalized)) {
+    return normalized
   }
-  return titles[status] || 'Status zaktualizowany'
+  const alias = REPAIR_STATUS_ALIAS[status]
+  return alias
+}
+
+function getStatusTitle(status: string): string {
+  const normalized = normalizeRepairStatus(status)
+  if (!normalized) return 'Status zaktualizowany'
+  return STATUS_TITLE_MAP[normalized]
 }
 
 function getStatusDescription(status: string): string {
-  const descriptions: Record<string, string> = {
-    'received': 'Urządzenie zostało przyjęte do serwisu',
-    'diagnosed': 'Problem został zidentyfikowany',
-    'in_progress': 'Trwają prace nad naprawą',
-    'testing': 'Przeprowadzamy testy po naprawie',
-    'completed': 'Naprawa została zakończona',
-    'ready': 'Urządzenie jest gotowe do odbioru',
-    'delivered': 'Urządzenie zostało wydane klientowi',
-    'cancelled': 'Naprawa została anulowana'
+  const normalized = normalizeRepairStatus(status)
+  if (!normalized) return 'Status został zaktualizowany'
+  return STATUS_DESCRIPTION_MAP[normalized]
+}
+
+function getProgressForStatus(status: string): number {
+  const normalized = normalizeRepairStatus(status)
+  if (!normalized) return 0
+  return STATUS_PROGRESS_MAP[normalized] ?? 0
+}
+
+async function createRequestRecord(supabaseClient: any, payload: RequestRecordInput) {
+  try {
+    const { data, error } = await supabaseClient.rpc('create_request_with_relations', {
+      request_type: payload.requestType,
+      source_page: payload.sourcePage,
+      customer_name_param: payload.customerName,
+      customer_email_param: payload.customerEmail,
+      customer_phone_param: payload.customerPhone ?? null,
+      device_type_param: payload.deviceType ?? null,
+      device_model_param: payload.deviceModel ?? null,
+      device_description_param: payload.deviceDescription ?? payload.message ?? null,
+      message_param: payload.message ?? null,
+      priority_param: payload.priority ?? 'normalny',
+      source_url_param: payload.sourceUrl ?? null,
+      user_agent_param: payload.userAgent ?? null,
+      consent_param: payload.consent ?? false
+    })
+
+    if (error) throw error
+    return data ?? null
+  } catch (rpcError) {
+    console.error('Failed to create request record:', rpcError)
+    return null
   }
-  return descriptions[status] || 'Status został zaktualizowany'
 }
 
 async function logEmailNotification(supabaseClient: any, notification: any) {

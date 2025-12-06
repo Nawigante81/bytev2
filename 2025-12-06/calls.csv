@@ -1,0 +1,32 @@
+query,total_exec_time,prop_exec_time,ncalls,sync_io_time
+SELECT EXISTS (SELECT schema_migrations.* FROM schema_migrations AS schema_migrations WHERE version = $1),00:00:00.012906,0.0%,992,00:00:00
+SET statement_timeout='58s',00:00:00.011336,0.0%,807,00:00:00
+SET idle_session_timeout='58s',00:00:00.001616,0.0%,807,00:00:00
+SET idle_session_timeout='58s',00:00:00.000787,0.0%,372,00:00:00
+SET statement_timeout='58s',00:00:00.005175,0.0%,372,00:00:00
+set pg_stat_statements.track = none,00:00:00.000516,0.0%,214,00:00:00
+select exists(select $1 from auth.users),00:00:00.007089,0.0%,137,00:00:00
+COMMIT,00:00:00.000217,0.0%,133,00:00:00
+BEGIN,00:00:00.000188,0.0%,133,00:00:00
+"-- Adapted from information_schema.schemata
+
+select
+  n.oid as id,
+  n.nspname as name,
+  u.rolname as owner
+from
+  pg_namespace n,
+  pg_roles u
+where
+  n.nspowner = u.oid
+  and (
+    pg_has_role(n.nspowner, $1)
+    or has_schema_privilege(n.oid, $2)
+  )
+  and not pg_catalog.starts_with(n.nspname, $3)
+  and not pg_catalog.starts_with(n.nspname, $4)
+ and not (n.nspname in ($5,$6,$7))
+
+-- source: dashboard
+-- user: 0ba615d1-de8c-486e-861f-eb29f511edee
+-- date: 2025-12-05T17:53:14.050Z",00:00:00.061658,0.1%,120,00:00:00

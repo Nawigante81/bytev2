@@ -1,0 +1,11 @@
+name,last_vacuum,last_autovacuum,last_analyze,last_autoanalyze,rowcount,dead_rowcount,autovacuum_threshold,expect_autovacuum,autoanalyze_threshold,expect_autoanalyze
+public.bookings,"","","","",            -1,             0,            50,no,            50,no
+public.customers,"","","","",            -1,             2,            50,no,            50,no
+public.email_notifications,"","","","",            -1,             0,            50,no,            50,no
+public.notifications,"","","","",            -1,             0,            50,no,            50,no
+public.profiles,"","","","",            -1,             5,            50,no,            50,no
+public.repair_timeline,"","","","",            -1,             0,            50,no,            50,no
+public.repairs,"","","","",            -1,             0,            50,no,            50,no
+public.requests,"","","","",            -1,             0,            50,no,            50,no
+public.reviews,"","","","",            -1,             0,            50,no,            50,no
+public.service_catalog,"","","","",            -1,             0,            50,no,            50,no

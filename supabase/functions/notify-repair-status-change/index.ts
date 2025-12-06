@@ -38,6 +38,8 @@ async function sendEmail(to: string, subject: string, html: string, record: any,
     status: 'pending',
     metadata: {
       repair_id: record.id,
+      request_id: record.request_id || null,
+      user_id: record.user_id || record.customer_id || null,
       status: record.status,
       device: record.device_type,
       source: 'edge-function'

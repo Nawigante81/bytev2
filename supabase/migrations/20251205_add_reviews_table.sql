@@ -8,17 +8,17 @@
 CREATE OR REPLACE FUNCTION public.set_updated_at()
 RETURNS trigger
 LANGUAGE plpgsql
-AS $
+AS $$
 BEGIN
   NEW.updated_at = now();
   RETURN NEW;
 END
-$;
+$$;
 
 -- 2. Utworzenie typu enum dla statusów opinii
-DO $ BEGIN
+DO $$ BEGIN
     CREATE TYPE public.review_status AS ENUM ('pending','approved','rejected');
-EXCEPTION WHEN duplicate_object THEN NULL; END $;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- 3. Tabela profiles (wymagana przez reviews)
 CREATE TABLE IF NOT EXISTS public.profiles (
@@ -43,15 +43,15 @@ LANGUAGE sql
 STABLE
 SECURITY DEFINER
 SET search_path = public
-AS $
+AS $$
   SELECT EXISTS (
     SELECT 1 FROM public.profiles p
     WHERE p.id = uid AND p.role = 'admin'
   );
-$;
+$$;
 
 -- 5. Trigger dla profiles updated_at
-DO $ BEGIN
+DO $$ BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM pg_trigger WHERE tgname = 'profiles_set_updated_at'
     ) THEN
@@ -59,29 +59,29 @@ DO $ BEGIN
         BEFORE UPDATE ON public.profiles
         FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
     END IF;
-END $;
+END $$;
 
 -- 6. Włączenie RLS dla profiles
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
 -- 7. Polityki RLS dla profiles
-DO $ BEGIN
+DO $$ BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='profiles' AND policyname='profiles_select_own'
     ) THEN
         CREATE POLICY profiles_select_own ON public.profiles
         FOR SELECT USING (id = auth.uid() OR public.is_admin(auth.uid()));
     END IF;
-END $;
+END $$;
 
-DO $ BEGIN
+DO $$ BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='profiles' AND policyname='profiles_update_own'
     ) THEN
         CREATE POLICY profiles_update_own ON public.profiles
         FOR UPDATE USING (id = auth.uid() OR public.is_admin(auth.uid()));
     END IF;
-END $;
+END $$;
 
 -- 8. Uprawnienia dla profiles
 GRANT SELECT, UPDATE ON TABLE public.profiles TO authenticated;

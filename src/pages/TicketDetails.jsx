@@ -26,20 +26,66 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+const STATUS_DETAILS = {
+  new_request: {
+    label: 'Nowe zgłoszenie',
+    badgeClass: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
+    icon: AlertTriangle,
+    progressDescription: 'Zgłoszenie otrzymane',
+  },
+  open: {
+    label: 'Analiza',
+    badgeClass: 'bg-gray-500/20 text-gray-300 border-gray-500/30',
+    icon: Clock,
+    progressDescription: 'Diagnoza w toku',
+  },
+  waiting_for_parts: {
+    label: 'Oczekiwanie na części',
+    badgeClass: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30',
+    icon: Loader2,
+    progressDescription: 'Czekamy na dostawę części',
+  },
+  in_repair: {
+    label: 'W naprawie',
+    badgeClass: 'bg-orange-500/20 text-orange-300 border-orange-500/30',
+    icon: Wrench,
+    progressDescription: 'Trwają prace serwisowe',
+  },
+  repair_completed: {
+    label: 'Naprawa zakończona',
+    badgeClass: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+    icon: CheckCircle,
+    progressDescription: 'Weryfikacja jakości',
+  },
+  ready_for_pickup: {
+    label: 'Gotowe do odbioru',
+    badgeClass: 'bg-green-500/20 text-green-300 border-green-500/30',
+    icon: Award,
+    progressDescription: 'Czeka na odbiór',
+  },
+};
+
+const STATUS_SEQUENCE = [
+  'new_request',
+  'open',
+  'waiting_for_parts',
+  'in_repair',
+  'repair_completed',
+  'ready_for_pickup',
+];
+
+const getStatusDetails = (status) => STATUS_DETAILS[status] || {
+  label: status || 'Nieznany status',
+  badgeClass: 'bg-gray-500/20 text-gray-300 border-gray-500/30',
+  icon: Clock,
+  progressDescription: 'Aktualizacja w toku',
+};
+
 const StatusBadge = ({ status }) => {
-  const statusConfig = {
-    new: { label: 'Nowe', className: 'bg-blue-500/20 text-blue-300 border-blue-500/30', icon: AlertTriangle },
-    open: { label: 'Otwarte', className: 'bg-gray-500/20 text-gray-300 border-gray-500/30', icon: Clock },
-    in_progress: { label: 'W naprawie', className: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30', icon: Wrench },
-    testing: { label: 'Testowanie', className: 'bg-purple-500/20 text-purple-300 border-purple-500/30', icon: Settings },
-    ready: { label: 'Gotowe', className: 'bg-green-500/20 text-green-300 border-green-500/30', icon: CheckCircle },
-    closed: { label: 'Zamknięte', className: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30', icon: Award },
-    default: { label: status, className: 'bg-gray-500/20 text-gray-300 border-gray-500/30', icon: Clock },
-  };
-  const config = statusConfig[status] || statusConfig.default;
-  const IconComponent = config.icon;
+  const config = getStatusDetails(status);
+  const IconComponent = config.icon || Clock;
   return (
-    <Badge variant="outline" className={cn('font-mono uppercase flex items-center gap-1', config.className)}>
+    <Badge variant="outline" className={cn('font-mono uppercase flex items-center gap-1', config.badgeClass)}>
       <IconComponent className="w-3 h-3" />
       {config.label}
     </Badge>
@@ -47,14 +93,11 @@ const StatusBadge = ({ status }) => {
 };
 
 const ProgressTracker = ({ status }) => {
-  const steps = [
-    { key: 'new', label: 'Przyjęte', description: 'Zgłoszenie otrzymane' },
-    { key: 'open', label: 'Analiza', description: 'Problem zidentyfikowany' },
-    { key: 'in_progress', label: 'Naprawa', description: 'Trwają prace' },
-    { key: 'testing', label: 'Testy', description: 'Kontrola jakości' },
-    { key: 'ready', label: 'Gotowe', description: 'Naprawa ukończona' },
-    { key: 'closed', label: 'Odbiór', description: 'Można odbierać' },
-  ];
+  const steps = STATUS_SEQUENCE.map((key) => ({
+    key,
+    label: getStatusDetails(key).label,
+    description: getStatusDetails(key).progressDescription,
+  }));
 
   const currentIndex = steps.findIndex(step => step.key === status);
   const progress = currentIndex >= 0 ? ((currentIndex + 1) / steps.length) * 100 : 0;
@@ -111,6 +154,13 @@ const TimelineEvent = ({ event, isLast }) => {
   };
 
   const IconComponent = getIcon(event.type);
+  const photos = Array.isArray(event.photos)
+    ? event.photos.map((photo) => {
+        if (typeof photo === 'string') return { url: photo };
+        if (photo && typeof photo === 'object' && photo.url) return photo;
+        return null;
+      }).filter(Boolean)
+    : [];
 
   return (
     <div className="flex gap-4">
@@ -139,9 +189,9 @@ const TimelineEvent = ({ event, isLast }) => {
             {event.metadata}
           </div>
         )}
-        {event.photos && event.photos.length > 0 && (
+        {photos.length > 0 && (
           <div className="flex gap-2 mt-2">
-            {event.photos.map((photo, index) => (
+            {photos.map((photo, index) => (
               <img 
                 key={index} 
                 src={photo.url} 
@@ -231,7 +281,7 @@ const TicketDetails = () => {
     setLoading(true);
     setError(null);
     const { data, error: fetchError } = await supabase
-      .from('diagnosis_requests')
+      .from('requests')
       .select('*')
       .eq('id', id)
       .single();
@@ -247,12 +297,12 @@ const TicketDetails = () => {
       setTicket(data);
       // Ustaw szacowany czas zakończenia na podstawie statusu
       const completionMap = {
-        'new': { days: 2, description: '2-3 dni robocze' },
-        'open': { days: 2, description: '2-3 dni robocze' },
-        'in_progress': { days: 1, description: '1-2 dni robocze' },
-        'testing': { days: 1, description: '1 dzień roboczy' },
-        'ready': { days: 0, description: 'Gotowe do odbioru' },
-        'closed': { days: 0, description: 'Zakończone' }
+        new_request: { days: 2, description: '2-3 dni robocze' },
+        open: { days: 2, description: '2-3 dni robocze' },
+        waiting_for_parts: { days: 5, description: 'Zależne od dostawcy' },
+        in_repair: { days: 2, description: '1-2 dni robocze' },
+        repair_completed: { days: 0, description: 'Naprawa zakończona' },
+        ready_for_pickup: { days: 0, description: 'Gotowe do odbioru' }
       };
       const completion = completionMap[data.status] || { days: 3, description: '3-4 dni robocze' };
       
@@ -275,65 +325,52 @@ const TicketDetails = () => {
 
   const fetchTimeline = useCallback(async () => {
     if (!id) return;
+
+    const { data: repair, error: repairError } = await supabase
+      .from('repairs')
+      .select('id')
+      .eq('request_id', id)
+      .maybeSingle();
+
+    if (repairError) {
+      console.error('repairs:', repairError);
+      return;
+    }
+
+    if (!repair) {
+      setTimeline([]);
+      return;
+    }
+
     const { data, error } = await supabase
-      .from('ticket_timeline')
-      .select('*')
-      .eq('ticket_id', id)
+      .from('repair_timeline')
+      .select('id, status, title, description, technician_name, estimated_completion, price_change, notes, photos, created_at')
+      .eq('repair_id', repair.id)
       .order('created_at', { ascending: true });
 
-    if (!error) {
-      setTimeline(data || []);
+    if (error) {
+      console.error('repair_timeline:', error);
+      return;
     }
+
+    const normalizedEvents = (data || []).map((event) => {
+      const metadataParts = [];
+      if (event.technician_name) metadataParts.push(`Technik: ${event.technician_name}`);
+      if (event.estimated_completion) metadataParts.push(`ETA: ${new Date(event.estimated_completion).toLocaleString('pl-PL')}`);
+      if (event.notes) metadataParts.push(event.notes);
+
+      return {
+        ...event,
+        type: 'status_change',
+        title: event.title || getStatusDetails(event.status).label,
+        description: event.description || `Status: ${getStatusDetails(event.status).label}`,
+        metadata: metadataParts.join(' • ') || null,
+      };
+    });
+
+    setTimeline(normalizedEvents);
   }, [id]);
 
-  // Symulacja timeline - w rzeczywistej aplikacji to byłoby z bazy danych
-  useEffect(() => {
-    if (ticket) {
-      const mockTimeline = [
-        {
-          id: 1,
-          type: 'status_change',
-          title: 'Zgłoszenie przyjęte',
-          description: 'Twoje zgłoszenie zostało pomyślnie zarejestrowane w systemie.',
-          created_at: ticket.created_at,
-          metadata: `Zgłoszenie ID: ${ticket.id.substring(0, 8)}`
-        },
-        ...(ticket.status !== 'new' ? [{
-          id: 2,
-          type: 'diagnosis',
-          title: 'Diagnoza rozpoczęta',
-          description: 'Rozpoczęliśmy diagnostykę Twojego urządzenia.',
-          created_at: new Date(new Date(ticket.created_at).getTime() + 2 * 60 * 60 * 1000).toISOString(),
-          metadata: 'Diagnoza sprzętowa i analiza systemowa'
-        }] : []),
-        ...(['in_progress', 'testing', 'ready', 'closed'].includes(ticket.status) ? [{
-          id: 3,
-          type: 'note',
-          title: 'Status zaktualizowany',
-          description: 'Problem został zidentyfikowany i rozpoczęto naprawę.',
-          created_at: new Date(new Date(ticket.created_at).getTime() + 6 * 60 * 60 * 1000).toISOString(),
-          metadata: 'Wymagana wymiana części - część zamówiona'
-        }] : []),
-        ...(['testing', 'ready', 'closed'].includes(ticket.status) ? [{
-          id: 4,
-          type: 'status_change',
-          title: 'Testowanie',
-          description: 'Urządzenie przechodzi testy jakości po naprawie.',
-          created_at: new Date(new Date(ticket.created_at).getTime() + 24 * 60 * 60 * 1000).toISOString(),
-          metadata: 'Testy stabilności i wydajności'
-        }] : []),
-        ...(['ready', 'closed'].includes(ticket.status) ? [{
-          id: 5,
-          type: 'completion',
-          title: 'Naprawa zakończona',
-          description: 'Urządzenie jest gotowe do odbioru!',
-          created_at: new Date(new Date(ticket.created_at).getTime() + 30 * 60 * 60 * 1000).toISOString(),
-          metadata: 'Wszystkie testy przeszły pomyślnie'
-        }] : [])
-      ];
-      setTimeline(mockTimeline);
-    }
-  }, [ticket]);
 
   useEffect(() => {
     fetchTicket();
@@ -360,7 +397,7 @@ const TicketDetails = () => {
     doc.text('ByteClinic - Zgłoszenie serwisowe', 14, 22);
     doc.setFontSize(12);
     doc.setFont('Helvetica', 'normal');
-    doc.text(`ID Zgłoszenia: ${ticket.id}`, 14, 32);
+    doc.text(`ID Zgłoszenia: ${displayId || ticket.id}`, 14, 32);
     doc.text(`Status: ${ticket.status}`, 14, 42);
     doc.text(`Data utworzenia: ${new Date(ticket.created_at).toLocaleString('pl-PL')}`, 14, 52);
     doc.text(`Tytuł: ${ticket.device || 'Brak'}`, 14, 62);
@@ -371,13 +408,13 @@ const TicketDetails = () => {
     const splitContent = doc.splitTextToSize(ticket.message || 'Brak opisu.', 180);
     doc.text(splitContent, 14, 82);
 
-    doc.save(`ticket_${ticket.id.substring(0, 8)}.pdf`);
+    doc.save(`ticket_${(displayId || ticket.id).toString().substring(0, 8)}.pdf`);
   };
 
   const handleStatusChange = async (newStatus) => {
     setIsUpdating(true);
     const { data, error: updateError } = await supabase
-      .from('diagnosis_requests')
+      .from('requests')
       .update({ status: newStatus })
       .eq('id', ticket.id)
       .select()
@@ -389,6 +426,7 @@ const TicketDetails = () => {
       setTicket(data);
       toast({ title: 'Status zaktualizowany!' });
       fetchTicket(); // Odśwież dane
+      fetchTimeline();
     }
     setIsUpdating(false);
   };
@@ -401,16 +439,23 @@ const TicketDetails = () => {
     return <EmptyState title="Błąd 404" description={error} onBack={() => navigate('/panel')} />;
   }
 
+  const displayId = ticket.request_id || ticket.id;
+  const breadcrumbLabel = displayId
+    ? displayId.toString().substring(0, 8)
+    : (ticket.id ? ticket.id.substring(0, 8) : '—');
+  const deviceLabel = ticket.device || ticket.device_model || ticket.device_type || 'Brak tytułu';
+  const customerLabel = ticket.customer_name || ticket.name || ticket.customer_email || 'Nieokreślone';
+
   return (
     <PageTransition>
       <Helmet>
-        <title>Zgłoszenie #{id.substring(0, 8)} - ByteClinic</title>
+        <title>Zgłoszenie {displayId ? `#${displayId}` : `#${id.substring(0, 8)}`} - ByteClinic</title>
       </Helmet>
       <div className="max-w-6xl mx-auto">
         <div className="mb-6">
           <p className="text-sm text-muted-foreground font-mono">
             <Link to="/panel" className="hover:text-primary">Panel</Link> / 
-            <span className="text-foreground"> Zgłoszenie #{id.substring(0, 8)}</span>
+            <span className="text-foreground"> Zgłoszenie #{breadcrumbLabel}</span>
           </p>
         </div>
 
@@ -423,10 +468,10 @@ const TicketDetails = () => {
                 <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
                   <div className="flex-grow">
                     <CardTitle className="text-2xl md:text-3xl break-words">
-                      {ticket.device || 'Brak tytułu'}
+                      {deviceLabel}
                     </CardTitle>
                     <CardDescription className="mt-2">
-                      Klient: {ticket.name || 'Nieokreślone'}
+                      Klient: {customerLabel}
                     </CardDescription>
                   </div>
                   <div className="flex-shrink-0">
@@ -443,8 +488,8 @@ const TicketDetails = () => {
                   <div>
                     <p className="text-muted-foreground font-mono">ID Zgłoszenia</p>
                     <div className="flex items-center gap-2">
-                      <p className="font-mono text-primary break-all">{ticket.id}</p>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={() => copyToClipboard(ticket.id)}>
+                      <p className="font-mono text-primary break-all">{displayId || ticket.id}</p>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={() => copyToClipboard(displayId || ticket.id)}>
                         <Copy className="h-4 w-4" />
                       </Button>
                     </div>
@@ -489,12 +534,11 @@ const TicketDetails = () => {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent>
-                        <DropdownMenuItem onClick={() => handleStatusChange('new')}>Oznacz jako Nowe</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleStatusChange('open')}>Oznacz jako Otwarte</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleStatusChange('in_progress')}>Oznacz jako W naprawie</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleStatusChange('testing')}>Oznacz jako Testowanie</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleStatusChange('ready')}>Oznacz jako Gotowe</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleStatusChange('closed')}>Oznacz jako Zamknięte</DropdownMenuItem>
+                        {STATUS_SEQUENCE.map((statusKey) => (
+                          <DropdownMenuItem key={statusKey} onClick={() => handleStatusChange(statusKey)}>
+                            {getStatusDetails(statusKey).label}
+                          </DropdownMenuItem>
+                        ))}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   )}

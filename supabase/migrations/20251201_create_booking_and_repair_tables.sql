@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS customers (
 );
 
 -- Indeks na email dla szybszego wyszukiwania
-CREATE INDEX idx_customers_email ON customers(email);
+CREATE INDEX IF NOT EXISTS idx_customers_email ON customers(email);
 
 -- =====================================================
 -- 2. TABELA: bookings (rezerwacje)
@@ -67,12 +67,40 @@ CREATE TABLE IF NOT EXISTS bookings (
     CONSTRAINT chk_status CHECK (status IN ('pending', 'confirmed', 'cancelled', 'completed', 'no_show'))
 );
 
--- Indeksy dla wydajności
-CREATE INDEX idx_bookings_customer_email ON bookings(customer_email);
-CREATE INDEX idx_bookings_date ON bookings(booking_date);
-CREATE INDEX idx_bookings_status ON bookings(status);
-CREATE INDEX idx_bookings_created_at ON bookings(created_at);
-CREATE INDEX idx_bookings_booking_id ON bookings(booking_id);
+-- Indeksy dla wydajności (tworzone tylko jeśli kolumny istnieją)
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' AND table_name = 'bookings' AND column_name = 'customer_email'
+    ) THEN
+        CREATE INDEX IF NOT EXISTS idx_bookings_customer_email ON bookings(customer_email);
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' AND table_name = 'bookings' AND column_name = 'booking_date'
+    ) THEN
+        CREATE INDEX IF NOT EXISTS idx_bookings_date ON bookings(booking_date);
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' AND table_name = 'bookings' AND column_name = 'status'
+    ) THEN
+        CREATE INDEX IF NOT EXISTS idx_bookings_status ON bookings(status);
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' AND table_name = 'bookings' AND column_name = 'created_at'
+    ) THEN
+        CREATE INDEX IF NOT EXISTS idx_bookings_created_at ON bookings(created_at);
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' AND table_name = 'bookings' AND column_name = 'booking_id'
+    ) THEN
+        CREATE INDEX IF NOT EXISTS idx_bookings_booking_id ON bookings(booking_id);
+    END IF;
+END $$;
 
 -- =====================================================
 -- 3. TABELA: repairs (śledzenie napraw)
@@ -134,13 +162,45 @@ CREATE TABLE IF NOT EXISTS repairs (
     CONSTRAINT chk_priority CHECK (priority IN ('low', 'normal', 'high', 'urgent'))
 );
 
--- Indeksy dla wydajności
-CREATE INDEX idx_repairs_customer_email ON repairs(customer_email);
-CREATE INDEX idx_repairs_status ON repairs(status);
-CREATE INDEX idx_repairs_created_at ON repairs(created_at);
-CREATE INDEX idx_repairs_repair_id ON repairs(repair_id);
-CREATE INDEX idx_repairs_technician ON repairs(technician_id);
-CREATE INDEX idx_repairs_priority ON repairs(priority);
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' AND table_name = 'repairs' AND column_name = 'customer_email'
+    ) THEN
+        CREATE INDEX IF NOT EXISTS idx_repairs_customer_email ON repairs(customer_email);
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' AND table_name = 'repairs' AND column_name = 'status'
+    ) THEN
+        CREATE INDEX IF NOT EXISTS idx_repairs_status ON repairs(status);
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' AND table_name = 'repairs' AND column_name = 'created_at'
+    ) THEN
+        CREATE INDEX IF NOT EXISTS idx_repairs_created_at ON repairs(created_at);
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' AND table_name = 'repairs' AND column_name = 'repair_id'
+    ) THEN
+        CREATE INDEX IF NOT EXISTS idx_repairs_repair_id ON repairs(repair_id);
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' AND table_name = 'repairs' AND column_name = 'technician_id'
+    ) THEN
+        CREATE INDEX IF NOT EXISTS idx_repairs_technician ON repairs(technician_id);
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' AND table_name = 'repairs' AND column_name = 'priority'
+    ) THEN
+        CREATE INDEX IF NOT EXISTS idx_repairs_priority ON repairs(priority);
+    END IF;
+END $$;
 
 -- =====================================================
 -- 4. TABELA: repair_timeline (oś czasu napraw)
@@ -168,9 +228,21 @@ CREATE TABLE IF NOT EXISTS repair_timeline (
     CONSTRAINT chk_timeline_status CHECK (status IN ('received', 'diagnosed', 'in_progress', 'testing', 'completed', 'ready', 'delivered', 'cancelled'))
 );
 
--- Indeksy
-CREATE INDEX idx_repair_timeline_repair_id ON repair_timeline(repair_id);
-CREATE INDEX idx_repair_timeline_created_at ON repair_timeline(created_at);
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' AND table_name = 'repair_timeline' AND column_name = 'repair_id'
+    ) THEN
+        CREATE INDEX IF NOT EXISTS idx_repair_timeline_repair_id ON repair_timeline(repair_id);
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' AND table_name = 'repair_timeline' AND column_name = 'created_at'
+    ) THEN
+        CREATE INDEX IF NOT EXISTS idx_repair_timeline_created_at ON repair_timeline(created_at);
+    END IF;
+END $$;
 
 -- =====================================================
 -- 5. TABELA: email_notifications (logi emaili)
@@ -205,11 +277,33 @@ CREATE TABLE IF NOT EXISTS email_notifications (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Indeksy
-CREATE INDEX idx_email_notifications_recipient ON email_notifications(recipient_email);
-CREATE INDEX idx_email_notifications_type ON email_notifications(type);
-CREATE INDEX idx_email_notifications_status ON email_notifications(status);
-CREATE INDEX idx_email_notifications_created_at ON email_notifications(created_at);
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' AND table_name = 'email_notifications' AND column_name = 'recipient_email'
+    ) THEN
+        CREATE INDEX IF NOT EXISTS idx_email_notifications_recipient ON email_notifications(recipient_email);
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' AND table_name = 'email_notifications' AND column_name = 'type'
+    ) THEN
+        CREATE INDEX IF NOT EXISTS idx_email_notifications_type ON email_notifications(type);
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' AND table_name = 'email_notifications' AND column_name = 'status'
+    ) THEN
+        CREATE INDEX IF NOT EXISTS idx_email_notifications_status ON email_notifications(status);
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' AND table_name = 'email_notifications' AND column_name = 'created_at'
+    ) THEN
+        CREATE INDEX IF NOT EXISTS idx_email_notifications_created_at ON email_notifications(created_at);
+    END IF;
+END $$;
 
 -- =====================================================
 -- 6. TABELA: service_catalog (katalog usług)
@@ -272,11 +366,29 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Triggery dla automatycznego updated_at
-CREATE TRIGGER update_customers_updated_at BEFORE UPDATE ON customers FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_bookings_updated_at BEFORE UPDATE ON bookings FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_repairs_updated_at BEFORE UPDATE ON repairs FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_service_catalog_updated_at BEFORE UPDATE ON service_catalog FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'update_customers_updated_at'
+    ) THEN
+        CREATE TRIGGER update_customers_updated_at BEFORE UPDATE ON customers FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'update_bookings_updated_at'
+    ) THEN
+        CREATE TRIGGER update_bookings_updated_at BEFORE UPDATE ON bookings FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'update_repairs_updated_at'
+    ) THEN
+        CREATE TRIGGER update_repairs_updated_at BEFORE UPDATE ON repairs FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'update_service_catalog_updated_at'
+    ) THEN
+        CREATE TRIGGER update_service_catalog_updated_at BEFORE UPDATE ON service_catalog FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+END $$;
 
 -- =====================================================
 -- POLITYKI RLS (ROW LEVEL SECURITY)
@@ -290,31 +402,69 @@ ALTER TABLE repair_timeline ENABLE ROW LEVEL SECURITY;
 ALTER TABLE email_notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE service_catalog ENABLE ROW LEVEL SECURITY;
 
--- Polityki dla customers (klienci widzą tylko swoje dane)
-CREATE POLICY "Users can view own customer data" ON customers
-    FOR SELECT USING (auth.uid() = id OR email = auth.jwt() ->> 'email');
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'customers' AND policyname = 'Users can view own customer data'
+    ) THEN
+        CREATE POLICY "Users can view own customer data" ON customers
+                FOR SELECT USING (auth.uid() = id OR email = auth.jwt() ->> 'email');
+    END IF;
 
-CREATE POLICY "Users can update own customer data" ON customers
-    FOR UPDATE USING (auth.uid() = id OR email = auth.jwt() ->> 'email');
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'customers' AND policyname = 'Users can update own customer data'
+    ) THEN
+        CREATE POLICY "Users can update own customer data" ON customers
+                FOR UPDATE USING (auth.uid() = id OR email = auth.jwt() ->> 'email');
+    END IF;
+END $$;
 
--- Polityki dla bookings (klienci widzą tylko swoje rezerwacje)
-CREATE POLICY "Users can view own bookings" ON bookings
-    FOR SELECT USING (customer_email = auth.jwt() ->> 'email' OR auth.uid() = customer_id);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'bookings' AND policyname = 'Users can view own bookings'
+    ) THEN
+        CREATE POLICY "Users can view own bookings" ON bookings
+                FOR SELECT USING (customer_email = auth.jwt() ->> 'email' OR auth.uid() = customer_id);
+    END IF;
 
-CREATE POLICY "Users can insert own bookings" ON bookings
-    FOR INSERT WITH CHECK (customer_email = auth.jwt() ->> 'email' OR auth.uid() = customer_id);
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'bookings' AND policyname = 'Users can insert own bookings'
+    ) THEN
+        CREATE POLICY "Users can insert own bookings" ON bookings
+                FOR INSERT WITH CHECK (customer_email = auth.jwt() ->> 'email' OR auth.uid() = customer_id);
+    END IF;
+END $$;
 
--- Polityki dla repairs (klienci widzą tylko swoje naprawy)
-CREATE POLICY "Users can view own repairs" ON repairs
-    FOR SELECT USING (customer_email = auth.jwt() ->> 'email' OR auth.uid() = customer_id);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'repairs' AND policyname = 'Users can view own repairs'
+    ) THEN
+        CREATE POLICY "Users can view own repairs" ON repairs
+                FOR SELECT USING (customer_email = auth.jwt() ->> 'email' OR auth.uid() = customer_id);
+    END IF;
+END $$;
 
--- Polityki dla service_catalog (wszyscy mogą czytać)
-CREATE POLICY "Everyone can view service catalog" ON service_catalog
-    FOR SELECT TO authenticated USING (is_active = true);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'service_catalog' AND policyname = 'Everyone can view service catalog'
+    ) THEN
+        CREATE POLICY "Everyone can view service catalog" ON service_catalog
+                FOR SELECT TO authenticated USING (is_active = true);
+    END IF;
+END $$;
 
--- Polityki dla email_notifications (tylko admin)
-CREATE POLICY "Only service role can manage email notifications" ON email_notifications
-    FOR ALL TO service_role USING (true);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'email_notifications' AND policyname = 'Only service role can manage email notifications'
+    ) THEN
+        CREATE POLICY "Only service role can manage email notifications" ON email_notifications
+                FOR ALL TO service_role USING (true);
+    END IF;
+END $$;
 
 -- =====================================================
 -- FUNKCJE DLA APLIKACJI

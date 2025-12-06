@@ -14,6 +14,25 @@ import { Label } from '@/components/ui/label';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 
+const STATUS_CONFIG = {
+  new_request: { label: 'Nowe zgłoszenie', className: 'bg-blue-500/20 text-blue-300' },
+  open: { label: 'Analiza', className: 'bg-cyan-500/20 text-cyan-300' },
+  waiting_for_parts: { label: 'Oczekiwanie na części', className: 'bg-amber-500/20 text-amber-200' },
+  in_repair: { label: 'W naprawie', className: 'bg-yellow-500/20 text-yellow-300' },
+  repair_completed: { label: 'Naprawa zakończona', className: 'bg-emerald-500/20 text-emerald-300' },
+  ready_for_pickup: { label: 'Gotowe do odbioru', className: 'bg-green-500/20 text-green-300' },
+};
+
+const resolveStatusMeta = (status) => {
+  if (!status) {
+    return { label: 'Nieznany', className: 'bg-gray-500/20 text-gray-300' };
+  }
+  return STATUS_CONFIG[status] || {
+    label: status.replace(/_/g, ' '),
+    className: 'bg-gray-500/20 text-gray-300',
+  };
+};
+
 const TicketStatus = () => {
   const { id } = useParams();
   const { toast } = useToast();
@@ -36,7 +55,7 @@ const TicketStatus = () => {
   const fetchTicket = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase
-      .from('diagnosis_requests')
+      .from('requests')
       .select('*')
       .eq('id', id)
       .single();
@@ -62,7 +81,7 @@ const TicketStatus = () => {
     const { data, error, count } = await supabase
       .from('ticket_comments')
       .select('*', { count: 'exact' })
-      .eq('ticket_id', id)
+      .eq('request_id', id)
       .order('created_at', { ascending: true })
       .range(from, to);
     if (error) {
@@ -80,7 +99,7 @@ const TicketStatus = () => {
     const { data, error } = await supabase
       .from('ticket_attachments')
       .select('*')
-      .eq('ticket_id', id)
+      .eq('request_id', id)
       .order('created_at', { ascending: false });
     if (error) {
       console.error('Attachments error:', error);
@@ -102,7 +121,7 @@ const TicketStatus = () => {
     if (!id) return;
     const channel = supabase
       .channel(`ticket-comments-${id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ticket_comments', filter: `ticket_id=eq.${id}` }, (payload) => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ticket_comments', filter: `request_id=eq.${id}` }, () => {
         // Simplest: refetch current page when any change occurs
         fetchComments();
       })
@@ -123,7 +142,7 @@ const TicketStatus = () => {
     if (!comment.trim()) return;
     setIsSubmitting(true);
     const { error } = await supabase.from('ticket_comments').insert({
-      ticket_id: id,
+      request_id: id,
       user_id: user.id,
       body: comment.trim(),
       is_private: false,
@@ -157,7 +176,7 @@ const TicketStatus = () => {
       if (upErr) throw upErr;
 
       const { error: insErr } = await supabase.from('ticket_attachments').insert({
-        ticket_id: ticket.id,
+        request_id: ticket.id,
         user_id: user.id,
         storage_path: storagePath,
         file_name: file.name,
@@ -209,16 +228,6 @@ const TicketStatus = () => {
     }
   };
 
-  const getStatusClass = (status) => {
-    switch (status) {
-      case 'new': return 'bg-blue-500/20 text-blue-300';
-      case 'in_progress': return 'bg-yellow-500/20 text-yellow-300';
-      case 'open': return 'bg-cyan-500/20 text-cyan-300';
-      case 'closed': return 'bg-green-500/20 text-green-300';
-      default: return 'bg-gray-500/20 text-gray-300';
-    }
-  };
-
   if (loading) {
     return <div className="flex justify-center items-center h-64"><Loader2 className="w-16 h-16 animate-spin text-primary" /></div>;
   }
@@ -233,14 +242,19 @@ const TicketStatus = () => {
     );
   }
 
+  const statusMeta = resolveStatusMeta(ticket.status);
+  const deviceLabel = ticket.device || ticket.device_model || ticket.device_type || 'Brak informacji';
+  const customerLabel = ticket.customer_name || ticket.name || ticket.customer_email || 'Nieznany klient';
+  const displayId = ticket.request_id || (ticket.id ? ticket.id.substring(0, 8) : '—');
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
       <Helmet>
-        <title>Status Zgłoszenia #{id.substring(0,8)} - ByteClinic</title>
-        <meta name="description" content={`Sprawdź status swojego zgłoszenia serwisowego #${id.substring(0,8)}.`} />
+        <title>Status zgłoszenia {displayId} - ByteClinic</title>
+        <meta name="description" content={`Sprawdź status zgłoszenia serwisowego ${displayId}.`} />
       </Helmet>
       
-      <SectionTitle subtitle={`Status zgłoszenia`}>#{ticket.id.substring(0,8)}</SectionTitle>
+      <SectionTitle subtitle="Status zgłoszenia">{displayId}</SectionTitle>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
@@ -248,15 +262,15 @@ const TicketStatus = () => {
             <CardHeader>
               <CardTitle className="flex justify-between items-center">
                 <span>Podsumowanie zgłoszenia</span>
-                <span className={cn("text-sm font-mono uppercase px-3 py-1 rounded-full", getStatusClass(ticket.status))}>
-                  {ticket.status.replace('_', ' ')}
+                <span className={cn("text-sm font-mono uppercase px-3 py-1 rounded-full", statusMeta.className)}>
+                  {statusMeta.label}
                 </span>
               </CardTitle>
               <CardDescription>Utworzono: {new Date(ticket.created_at).toLocaleString('pl-PL')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <p><strong>Urządzenie:</strong> {ticket.device}</p>
-              <p><strong>Klient:</strong> {ticket.name}</p>
+              <p><strong>Urządzenie:</strong> {deviceLabel}</p>
+              <p><strong>Klient:</strong> {customerLabel}</p>
               <p><strong>Opis problemu:</strong> {ticket.message || 'Brak'}</p>
             </CardContent>
           </Card>
