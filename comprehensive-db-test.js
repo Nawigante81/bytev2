@@ -8,17 +8,27 @@
 import { createClient } from '@supabase/supabase-js';
 import fs from 'fs';
 
-// Load environment variables
+// Load environment variables - simplified parser
+// Note: For production, consider using 'dotenv' package
 try {
   const envPath = '.env';
   if (fs.existsSync(envPath)) {
-    const lines = fs.readFileSync(envPath, 'utf8').split(/\r?\n/);
-    for (const line of lines) {
-      const m1 = line.match(/^VITE_SUPABASE_URL=(.*)$/);
-      if (m1 && !process.env.VITE_SUPABASE_URL) process.env.VITE_SUPABASE_URL = m1[1].trim();
-      const m2 = line.match(/^VITE_SUPABASE_ANON_KEY=(.*)$/);
-      if (m2 && !process.env.VITE_SUPABASE_ANON_KEY) process.env.VITE_SUPABASE_ANON_KEY = m2[1].trim();
-    }
+    const content = fs.readFileSync(envPath, 'utf8');
+    const envVars = content
+      .split(/\r?\n/)
+      .filter(line => line.trim() && !line.startsWith('#'))
+      .reduce((acc, line) => {
+        const [key, ...valueParts] = line.split('=');
+        if (key && valueParts.length > 0) {
+          const value = valueParts.join('=').trim();
+          if (key === 'VITE_SUPABASE_URL' && !process.env.VITE_SUPABASE_URL) {
+            process.env.VITE_SUPABASE_URL = value;
+          } else if (key === 'VITE_SUPABASE_ANON_KEY' && !process.env.VITE_SUPABASE_ANON_KEY) {
+            process.env.VITE_SUPABASE_ANON_KEY = value;
+          }
+        }
+        return acc;
+      }, {});
   }
 } catch (e) {
   console.warn('⚠️ Failed to read .env:', e?.message || e);

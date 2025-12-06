@@ -106,7 +106,7 @@ GRANT INSERT, UPDATE, DELETE ON service_catalog TO authenticated;
 -- =====================================================
 CREATE TABLE IF NOT EXISTS service_orders (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    order_id VARCHAR(20) UNIQUE NOT NULL DEFAULT 'SO-' || UPPER(SUBSTR(MD5(RANDOM()::TEXT), 1, 8)),
+    order_id VARCHAR(20) UNIQUE NOT NULL DEFAULT 'SO-' || TO_CHAR(NOW(), 'YYYYMMDD') || '-' || UPPER(SUBSTR(MD5(RANDOM()::TEXT || gen_random_uuid()::TEXT), 1, 6)),
     
     -- Powiązania
     service_id UUID REFERENCES service_catalog(id) ON DELETE SET NULL,
