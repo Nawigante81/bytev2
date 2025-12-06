@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   display_name text,
   avatar_url text,
   role text NOT NULL DEFAULT 'user' CHECK (role IN ('user','admin')),
+    is_admin boolean NOT NULL DEFAULT false,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
@@ -35,6 +36,12 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS role text;
 ALTER TABLE public.profiles ALTER COLUMN role SET DEFAULT 'user';
 UPDATE public.profiles SET role = 'user' WHERE role IS NULL;
 ALTER TABLE public.profiles ALTER COLUMN role SET NOT NULL;
+
+-- Dodanie kolumny is_admin jeśli nie istnieje
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_admin boolean;
+ALTER TABLE public.profiles ALTER COLUMN is_admin SET DEFAULT false;
+UPDATE public.profiles SET is_admin = false WHERE is_admin IS NULL;
+ALTER TABLE public.profiles ALTER COLUMN is_admin SET NOT NULL;
 
 -- 4. Funkcja is_admin()
 CREATE OR REPLACE FUNCTION public.is_admin(uid uuid DEFAULT auth.uid())
