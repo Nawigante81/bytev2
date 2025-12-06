@@ -299,27 +299,72 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 ALTER TABLE requests ENABLE ROW LEVEL SECURITY;
 
 -- Polityki dla klientów (mogą widzieć tylko swoje zgłoszenia)
-CREATE POLICY "Customers can view own requests" ON requests
-    FOR SELECT USING (customer_email = auth.jwt() ->> 'email');
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies
+        WHERE schemaname = 'public' AND tablename = 'requests' AND policyname = 'Customers can view own requests'
+    ) THEN
+        CREATE POLICY "Customers can view own requests" ON requests
+            FOR SELECT USING (customer_email = auth.jwt() ->> 'email');
+    END IF;
 
-CREATE POLICY "Customers can insert own requests" ON requests
-    FOR INSERT WITH CHECK (customer_email = auth.jwt() ->> 'email');
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies
+        WHERE schemaname = 'public' AND tablename = 'requests' AND policyname = 'Customers can insert own requests'
+    ) THEN
+        CREATE POLICY "Customers can insert own requests" ON requests
+            FOR INSERT WITH CHECK (customer_email = auth.jwt() ->> 'email');
+    END IF;
+END $$;
 
 -- Polityki dla administratorów (pełny dostęp)
-CREATE POLICY "Service role can manage all requests" ON requests
-    FOR ALL TO service_role USING (true);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies
+        WHERE schemaname = 'public' AND tablename = 'requests' AND policyname = 'Service role can manage all requests'
+    ) THEN
+        CREATE POLICY "Service role can manage all requests" ON requests
+            FOR ALL TO service_role USING (true);
+    END IF;
+END $$;
 
 -- Polityki dla zalogowanych użytkowników (mogą widzieć swoje)
-CREATE POLICY "Authenticated users can view own requests" ON requests
-    FOR SELECT USING (auth.uid() = user_id);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies
+        WHERE schemaname = 'public' AND tablename = 'requests' AND policyname = 'Authenticated users can view own requests'
+    ) THEN
+        CREATE POLICY "Authenticated users can view own requests" ON requests
+            FOR SELECT USING (auth.uid() = user_id);
+    END IF;
+END $$;
 
 -- Polityki dla publicznego dostępu (tylko odczyt)
-CREATE POLICY "Public can view approved requests" ON requests
-    FOR SELECT USING (status IN ('zakonczone') AND consent = true);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies
+        WHERE schemaname = 'public' AND tablename = 'requests' AND policyname = 'Public can view approved requests'
+    ) THEN
+        CREATE POLICY "Public can view approved requests" ON requests
+            FOR SELECT USING (status IN ('zakonczone') AND consent = true);
+    END IF;
+END $$;
 
 -- Polityki dla publicznego dostępu do napraw przez public_code
-CREATE POLICY "Public can view repair by public code" ON repairs
-    FOR SELECT USING (public_code IS NOT NULL);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies
+        WHERE schemaname = 'public' AND tablename = 'repairs' AND policyname = 'Public can view repair by public code'
+    ) THEN
+        CREATE POLICY "Public can view repair by public code" ON repairs
+            FOR SELECT USING (public_code IS NOT NULL);
+    END IF;
+END $$;
 
 -- =====================================================
 -- 9. FUNKCJA MIGRACJI DANYCH
@@ -524,8 +569,9 @@ ORDER BY policyname;
 -- KONIEC MIGRACJI
 -- =====================================================
 
--- Informacja o zakończeniu migracji
-RAISE NOTICE 'Migracja centralnej tabeli requests została pomyślnie wykonana!';
-RAISE NOTICE 'Utworzono tabelę requests z funkcjami pomocniczymi, RLS policies i indeksami';
-RAISE NOTICE 'Dodano powiązania do tabel bookings i repairs';
-RAISE NOTICE 'Zaimplementowano pola publiczne dla śledzenia napraw';
+DO $$ BEGIN
+    RAISE NOTICE 'Migracja centralnej tabeli requests została pomyślnie wykonana!';
+    RAISE NOTICE 'Utworzono tabelę requests z funkcjami pomocniczymi, RLS policies i indeksami';
+    RAISE NOTICE 'Dodano powiązania do tabel bookings i repairs';
+    RAISE NOTICE 'Zaimplementowano pola publiczne dla śledzenia napraw';
+END $$;
