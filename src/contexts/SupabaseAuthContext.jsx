@@ -98,15 +98,24 @@ export const AuthProvider = ({ children }) => {
     });
 
     if (error) {
-      toast({
-        variant: "destructive",
-        title: "Błąd rejestracji",
-        description: error.message || "Coś poszło nie tak",
-      });
+      // Specyficzne komunikaty dla błędów SMTP i email
+      if (error.message.includes('email') || error.message.includes('Email') || error.message.includes('smtp')) {
+        toast({
+          variant: "destructive",
+          title: "Problem z wysyłką email",
+          description: "Email confirmation może nie dotrzeć. Spróbuj magiczny link lub skontaktuj się z administratorem.",
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Błąd rejestracji",
+          description: error.message || "Coś poszło nie tak",
+        });
+      }
     } else {
       toast({
         title: "Rejestracja udana!",
-        description: "Sprawdź e-mail, aby potwierdzić konto.",
+        description: "Sprawdź e-mail (łącznie ze spamem), aby potwierdzić konto.",
       });
     }
 

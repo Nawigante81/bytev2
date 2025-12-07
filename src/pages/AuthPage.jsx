@@ -18,6 +18,7 @@ const AuthPage = () => {
   const [signupInfo, setSignupInfo] = useState('');
   const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showMagicLinkOption, setShowMagicLinkOption] = useState(false);
   const { signIn, signUp, signInWithOtp } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -47,6 +48,7 @@ const AuthPage = () => {
   const handleSignUp = async () => {
     setFormError('');
     setSignupInfo('');
+    setShowMagicLinkOption(false);
     if (!email || !password || !confirmPassword) {
       setFormError('Wypełnij e‑mail i oba pola hasła.');
       return;
@@ -63,9 +65,48 @@ const AuthPage = () => {
     const { error } = await signUp(email, password);
     setIsSubmitting(false);
     if (!error) {
-      setSignupInfo('Rejestracja rozpoczęta. Sprawdź swoją skrzynkę e‑mail i potwierdź adres, aby dokończyć zakładanie konta. Po potwierdzeniu będziesz mógł się zalogować.');
+      setSignupInfo('Rejestracja rozpoczęta. Sprawdź swoją skrzynkę e‑mail (łącznie ze spamem) i potwierdź adres, aby dokończyć zakładanie konta. Po potwierdzeniu będziesz mógł się zalogować.');
       setPassword('');
       setConfirmPassword('');
+    }
+  };
+
+  const handleSignUpWithMagicLink = async () => {
+    setFormError('');
+    setSignupInfo('');
+    setShowMagicLinkOption(false);
+    if (!email || !password || !confirmPassword) {
+      setFormError('Wypełnij e‑mail i oba pola hasła.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setFormError('Hasła nie są identyczne.');
+      return;
+    }
+    if (password.length < 6) {
+      setFormError('Hasło musi mieć co najmniej 6 znaków.');
+      return;
+    }
+    
+    setIsSubmitting(true);
+    try {
+      // Najpierw spróbuj zwykłej rejestracji
+      const { error: signUpError } = await signUp(email, password);
+      
+      if (signUpError && (signUpError.message.includes('email') || signUpError.message.includes('Email') || signUpError.message.includes('smtp'))) {
+        // Jeśli błąd SMTP, spróbuj magic link jako fallback
+        setShowMagicLinkOption(true);
+        setSignupInfo('Problem z wysyłką email confirmation. Użyj magic link jako alternatywy.');
+      } else if (!signUpError) {
+        setSignupInfo('Rejestracja zakończona! Sprawdź email lub użyj magic link jeśli potrzebujesz.');
+        setPassword('');
+        setConfirmPassword('');
+      }
+    } catch (err) {
+      console.error('Error in signup flow:', err);
+      setFormError('Wystąpił błąd podczas rejestracji.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -172,6 +213,17 @@ const AuthPage = () => {
                   <Button className="w-full" variant="secondary" onClick={handleSignUp} disabled={isSubmitting || !email || !password || !confirmPassword || password !== confirmPassword}>
                     {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Utwórz konto
                   </Button>
+                  
+                  <Button className="w-full" variant="outline" onClick={handleSignUpWithMagicLink} disabled={isSubmitting || !email || !password || !confirmPassword || password !== confirmPassword}>
+                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Utwórz konto z magic link
+                  </Button>
+                  
+                  {showMagicLinkOption && (
+                    <Button className="w-full" variant="ghost" onClick={handleMagicLink} disabled={isSubmitting || !email}>
+                      {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Wyślij magic link
+                    </Button>
+                  )}
+                  
                   <p className="text-xs text-muted-foreground text-center">
                     Po rejestracji wyślemy wiadomość z linkiem aktywacyjnym. Potwierdź e‑mail, a następnie zaloguj się.
                   </p>

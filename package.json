@@ -22,6 +22,7 @@
     "@vitejs/plugin-react": "latest",
     "autoprefixer": "10.4.17",
     "class-variance-authority": "^0.7.0",
+    "dotenv": "^17.2.3",
     "framer-motion": "^11.0.0",
     "jspdf": "^3.0.4",
     "lucide-react": "^0.263.1",
