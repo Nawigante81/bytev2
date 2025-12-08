@@ -48,38 +48,30 @@ const UserManagement = () => {
     
     setLoading(true);
     try {
-      // Pobierz użytkowników z auth.users
-      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
-      if (authError) {
-        console.error('Błąd pobierania użytkowników:', authError);
-        toast({ variant: 'destructive', title: 'Błąd pobierania użytkowników', description: authError.message });
+      // Pobierz użytkowników z edge function API
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast({ variant: 'destructive', title: 'Błąd autoryzacji', description: 'Brak sesji użytkownika' });
         return;
       }
 
-      // Pobierz profile z public.profiles
-      const { data: userProfiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('*');
-      
-      if (profilesError) {
-        console.error('Błąd pobierania profili:', profilesError);
-        toast({ variant: 'destructive', title: 'Błąd pobierania profili', description: profilesError.message });
-        return;
-      }
-
-      // Połącz dane z auth.users i profiles
-      const usersWithProfiles = authUsers.users.map(user => {
-        const profile = userProfiles?.find(p => p.id === user.id);
-        return {
-          ...user,
-          profile: profile || null,
-          hasProfile: !!profile,
-          role: profile?.role || 'no-profile'
-        };
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-users`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        }
       });
 
-      setUsers(usersWithProfiles);
-      setProfiles(userProfiles || []);
+      const result = await response.json();
+      
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Błąd pobierania użytkowników');
+      }
+
+      const { users: userList, stats } = result.data;
+      setUsers(userList);
+      setProfiles(userList.map(u => u.profile).filter(Boolean));
     } catch (err) {
       console.error('Błąd:', err);
       toast({ variant: 'destructive', title: 'Błąd pobierania danych', description: err.message });
@@ -100,22 +92,39 @@ const UserManagement = () => {
     }
   }, [fetchUsersAndProfiles, isAdmin]);
 
+  const callAdminApi = async (action, userId, payload = {}) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      throw new Error('Brak sesji użytkownika');
+    }
+
+    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-users`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        action,
+        userId,
+        ...payload
+      })
+    });
+
+    const result = await response.json();
+    
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || 'Błąd wykonania akcji');
+    }
+
+    return result.data;
+  };
+
   const promoteToAdmin = async (userId) => {
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .upsert({
-          id: userId,
-          role: 'admin',
-          full_name: 'Administrator'
-        }, { onConflict: 'id' });
-
-      if (error) {
-        toast({ variant: 'destructive', title: 'Błąd promocji', description: error.message });
-      } else {
-        toast({ title: 'Użytkownik został promowany na administratora' });
-        refreshData();
-      }
+      await callAdminApi('promote-admin', userId, { fullName: 'Administrator' });
+      toast({ title: 'Użytkownik został promowany na administratora' });
+      refreshData();
     } catch (err) {
       toast({ variant: 'destructive', title: 'Błąd promocji', description: err.message });
     }
@@ -123,17 +132,9 @@ const UserManagement = () => {
 
   const demoteToUser = async (userId) => {
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ role: 'user' })
-        .eq('id', userId);
-
-      if (error) {
-        toast({ variant: 'destructive', title: 'Błąd degradacji', description: error.message });
-      } else {
-        toast({ title: 'Użytkownik został zdegradowany do roli użytkownika' });
-        refreshData();
-      }
+      await callAdminApi('demote-user', userId);
+      toast({ title: 'Użytkownik został zdegradowany do roli użytkownika' });
+      refreshData();
     } catch (err) {
       toast({ variant: 'destructive', title: 'Błąd degradacji', description: err.message });
     }
@@ -141,20 +142,9 @@ const UserManagement = () => {
 
   const createProfile = async (userId) => {
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .insert({
-          id: userId,
-          full_name: 'Użytkownik',
-          role: 'user'
-        });
-
-      if (error) {
-        toast({ variant: 'destructive', title: 'Błąd tworzenia profilu', description: error.message });
-      } else {
-        toast({ title: 'Profil został utworzony' });
-        refreshData();
-      }
+      await callAdminApi('create-profile', userId, { fullName: 'Użytkownik' });
+      toast({ title: 'Profil został utworzony' });
+      refreshData();
     } catch (err) {
       toast({ variant: 'destructive', title: 'Błąd tworzenia profilu', description: err.message });
     }
@@ -162,17 +152,9 @@ const UserManagement = () => {
 
   const deleteProfile = async (userId) => {
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', userId);
-
-      if (error) {
-        toast({ variant: 'destructive', title: 'Błąd usuwania profilu', description: error.message });
-      } else {
-        toast({ title: 'Profil został usunięty' });
-        refreshData();
-      }
+      await callAdminApi('delete-profile', userId);
+      toast({ title: 'Profil został usunięty' });
+      refreshData();
     } catch (err) {
       toast({ variant: 'destructive', title: 'Błąd usuwania profilu', description: err.message });
     }
