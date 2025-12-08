@@ -499,7 +499,10 @@ const RepairTracker = () => {
                       <div className="space-y-2 text-sm">
                         <p><strong>Status:</strong> 
                           <Badge className={`ml-2 ${statusConfig[selectedRepair.status]?.color || 'bg-gray-500/20 text-gray-300 border-gray-500/30'}`}>
-                            <StatusIcon className="w-3 h-3 mr-1" />
+                            {(() => {
+                              const DialogStatusIcon = statusConfig[selectedRepair.status]?.icon || Package;
+                              return <DialogStatusIcon className="w-3 h-3 mr-1" />;
+                            })()}
                             {statusConfig[selectedRepair.status]?.label || selectedRepair.status}
                           </Badge>
                         </p>
