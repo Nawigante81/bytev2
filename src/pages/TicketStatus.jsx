@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -21,16 +20,15 @@ const STATUS_CONFIG = {
   in_repair: { label: 'W naprawie', className: 'bg-yellow-500/20 text-yellow-300' },
   repair_completed: { label: 'Naprawa zakończona', className: 'bg-emerald-500/20 text-emerald-300' },
   ready_for_pickup: { label: 'Gotowe do odbioru', className: 'bg-green-500/20 text-green-300' },
+  nowe: { label: 'Nowe zgłoszenie', className: 'bg-blue-500/20 text-blue-300' },
+  w_realizacji: { label: 'W realizacji', className: 'bg-yellow-500/20 text-yellow-300' },
+  zakonczone: { label: 'Zakończone', className: 'bg-emerald-500/20 text-emerald-300' },
 };
 
 const resolveStatusMeta = (status) => {
-  if (!status) {
-    return { label: 'Nieznany', className: 'bg-gray-500/20 text-gray-300' };
-  }
-  return STATUS_CONFIG[status] || {
-    label: status.replace(/_/g, ' '),
-    className: 'bg-gray-500/20 text-gray-300',
-  };
+  if (!status) return { label: 'Nieznany', className: 'bg-gray-500/20 text-gray-300' };
+
+  return STATUS_CONFIG[status] || { label: status.replace(/_/g, ' '), className: 'bg-gray-500/20 text-gray-300' };
 };
 
 const TicketStatus = () => {
@@ -54,15 +52,21 @@ const TicketStatus = () => {
 
   const fetchTicket = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('diagnosis_requests')
-      .select('*')
-      .eq('id', id)
-      .single();
+    setError(null);
 
-    if (error) {
+    // Szukaj po request_id (kod pokazany klientowi) lub UUID id
+    const { data, error } = await supabase
+      .from('requests')
+      .select('*')
+      .or(`request_id.eq.${id},id.eq.${id}`)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error || !data) {
       setError('Nie znaleziono zgłoszenia o podanym ID lub wystąpił błąd.');
       console.error(error);
+      setTicket(null);
     } else {
       setTicket(data);
     }
@@ -74,14 +78,14 @@ const TicketStatus = () => {
   }, [fetchTicket]);
 
   const fetchComments = useCallback(async () => {
-    if (!id) return;
+    if (!ticket?.id) return;
     setCommentsLoading(true);
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
     const { data, error, count } = await supabase
       .from('ticket_comments')
       .select('*', { count: 'exact' })
-      .eq('ticket_id', id)
+      .eq('request_id', ticket.id)
       .order('created_at', { ascending: true })
       .range(from, to);
     if (error) {
@@ -91,15 +95,15 @@ const TicketStatus = () => {
       if (typeof count === 'number') setTotalComments(count);
     }
     setCommentsLoading(false);
-  }, [id, page, pageSize]);
+  }, [ticket, page, pageSize]);
 
   const fetchAttachments = useCallback(async () => {
-    if (!id) return;
+    if (!ticket?.id) return;
     setAttachmentsLoading(true);
     const { data, error } = await supabase
       .from('ticket_attachments')
       .select('*')
-      .eq('diagnosis_request_id', id)
+      .eq('request_id', ticket.id)
       .order('created_at', { ascending: false });
     if (error) {
       console.error('Attachments error:', error);
@@ -107,7 +111,7 @@ const TicketStatus = () => {
       setAttachments(data || []);
     }
     setAttachmentsLoading(false);
-  }, [id]);
+  }, [ticket]);
 
   useEffect(() => {
     if (ticket) {
@@ -116,34 +120,29 @@ const TicketStatus = () => {
     }
   }, [ticket, fetchComments, fetchAttachments]);
 
-  // Realtime subscription for new comments on this ticket
   useEffect(() => {
-    if (!id) return;
+    if (!ticket?.id) return;
     const channel = supabase
-      .channel(`ticket-comments-${id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ticket_comments', filter: `ticket_id=eq.${id}` }, () => {
-        // Simplest: refetch current page when any change occurs
+      .channel(`ticket-comments-${ticket.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ticket_comments', filter: `request_id=eq.${ticket.id}` }, () => {
         fetchComments();
       })
-      .subscribe((status) => {
-        // no-op
-      });
-
+      .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [id, fetchComments]);
+  }, [ticket, fetchComments]);
 
   const handleAddComment = async () => {
     if (!user) {
       toast({ title: 'Zaloguj się', description: 'Tylko zalogowani mogą dodawać komentarze.', variant: 'destructive' });
       return;
     }
-    if (!comment.trim()) return;
+    if (!comment.trim() || !ticket?.id) return;
     setIsSubmitting(true);
     const { error } = await supabase.from('ticket_comments').insert({
-      ticket_id: id,
-      author_id: user.id,
+      request_id: ticket.id,
+      user_id: user.id,
       body: comment.trim(),
     });
     setIsSubmitting(false);
@@ -160,7 +159,7 @@ const TicketStatus = () => {
 
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
-    if (!file || !ticket) return;
+    if (!file || !ticket?.id) return;
     if (!user) {
       toast({ title: 'Zaloguj się', description: 'Tylko zalogowani mogą przesyłać pliki.', variant: 'destructive' });
       return;
@@ -175,7 +174,7 @@ const TicketStatus = () => {
       if (upErr) throw upErr;
 
       const { error: insErr } = await supabase.from('ticket_attachments').insert({
-        diagnosis_request_id: ticket.id,
+        request_id: ticket.id,
         user_id: user.id,
         storage_path: storagePath,
         file_name: file.name,
@@ -223,6 +222,7 @@ const TicketStatus = () => {
       toast({ title: 'Załącznik usunięty' });
       fetchAttachments();
     } catch (err) {
+      console.error('Delete attachment error:', err);
       toast({ variant: 'destructive', title: 'Błąd usuwania', description: err.message || String(err) });
     }
   };
@@ -242,8 +242,8 @@ const TicketStatus = () => {
   }
 
   const statusMeta = resolveStatusMeta(ticket.status);
-  const deviceLabel = ticket.device || ticket.device_model || ticket.device_type || 'Brak informacji';
-  const customerLabel = ticket.customer_name || ticket.name || ticket.customer_email || 'Nieznany klient';
+  const deviceLabel = ticket.device_type || ticket.device_model || ticket.device_description || 'Brak informacji';
+  const customerLabel = ticket.customer_name || ticket.customer_email || 'Nieznany klient';
   const displayId = ticket.request_id || (ticket.id ? ticket.id.substring(0, 8) : '—');
 
   return (
@@ -252,7 +252,7 @@ const TicketStatus = () => {
         <title>Status zgłoszenia {displayId} - ByteClinic</title>
         <meta name="description" content={`Sprawdź status zgłoszenia serwisowego ${displayId}.`} />
       </Helmet>
-      
+
       <SectionTitle subtitle="Status zgłoszenia">{displayId}</SectionTitle>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -294,7 +294,6 @@ const TicketStatus = () => {
                 </div>
               )}
 
-              {/* Pagination controls */}
               {totalComments > pageSize && (
                 <div className="flex items-center justify-between pt-4 text-sm text-muted-foreground">
                   <span>
@@ -330,45 +329,46 @@ const TicketStatus = () => {
         </div>
 
         <div className="space-y-8">
-           <Card className="bg-card/80 border-primary/20 backdrop-blur-sm">
+          <Card className="bg-card/80 border-primary/20 backdrop-blur-sm">
             <CardHeader>
               <CardTitle>Szczegóły</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-               <p className="text-muted-foreground text-center py-4">Brak dodatkowych informacji.</p>
+              <p className="text-muted-foreground text-center py-4">Brak dodatkowych informacji.</p>
             </CardContent>
           </Card>
+
           <Card className="bg-card/80 border-secondary/20 backdrop-blur-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><FileText className="text-secondary" /> Załączniki</CardTitle>
             </CardHeader>
             <CardContent>
-                {attachmentsLoading ? (
-                  <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin" /></div>
-                ) : attachments.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-4">Brak załączników.</p>
-                ) : (
-                  <ul className="space-y-2">
-                    {attachments.map(att => (
-                      <li key={att.id} className="flex items-center justify-between gap-3 border border-border/40 rounded px-3 py-2">
-                        <div className="min-w-0">
-                          <p className="truncate">{att.file_name}</p>
-                          <p className="text-xs text-muted-foreground">{new Date(att.created_at).toLocaleString('pl-PL')}</p>
-                        </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <Button size="sm" variant="outline" onClick={() => handleDownload(att)}>
-                            <Download className="w-4 h-4 mr-1" /> Pobierz
+              {attachmentsLoading ? (
+                <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin" /></div>
+              ) : attachments.length === 0 ? (
+                <p className="text-muted-foreground text-center py-4">Brak załączników.</p>
+              ) : (
+                <ul className="space-y-2">
+                  {attachments.map(att => (
+                    <li key={att.id} className="flex items-center justify-between gap-3 border border-border/40 rounded px-3 py-2">
+                      <div className="min-w-0">
+                        <p className="truncate">{att.file_name}</p>
+                        <p className="text-xs text-muted-foreground">{new Date(att.created_at).toLocaleString('pl-PL')}</p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <Button size="sm" variant="outline" onClick={() => handleDownload(att)}>
+                          <Download className="w-4 h-4 mr-1" /> Pobierz
+                        </Button>
+                        {user && (
+                          <Button size="sm" variant="outline" onClick={() => handleDeleteAttachment(att)}>
+                            <Trash2 className="w-4 h-4 mr-1" /> Usuń
                           </Button>
-                          {user && (
-                            <Button size="sm" variant="outline" onClick={() => handleDeleteAttachment(att)}>
-                              <Trash2 className="w-4 h-4 mr-1" /> Usuń
-                            </Button>
-                          )}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </CardContent>
           </Card>
         </div>
