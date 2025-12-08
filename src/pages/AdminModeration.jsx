@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Check, X, Trash2, MessageSquare, Ticket, MessageCircle } from 'lucide-react';
+import { Loader2, Check, X, Trash2, MessageSquare, Ticket } from 'lucide-react';
 import SectionTitle from '@/components/SectionTitle';
 import PageTransition from '@/components/PageTransition';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -355,113 +355,6 @@ const TicketsTab = () => {
 };
 
 
-const CommentsTab = () => {
-  const { toast } = useToast();
-  const [comments, setComments] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState('ALL');
-
-  const fetchComments = useCallback(async () => {
-    setLoading(true);
-    let query = supabase
-      .from('ticket_comments')
-      .select('id, ticket_id, author_id, body, created_at, diagnosis_requests(id, device)')
-      .order('created_at', { ascending: false });
-
-    if (statusFilter !== 'ALL') {
-      query = query.eq('status', statusFilter);
-    }
-
-    const { data, error } = await query;
-    if (error) {
-      toast({ variant: 'destructive', title: 'Błąd pobierania komentarzy', description: error.message });
-      setComments([]);
-      setLoading(false);
-      return;
-    }
-
-    const base = data || [];
-    const authorIds = Array.from(new Set(base.map((c) => c.author_id).filter(Boolean)));
-    let profilesMap = new Map();
-    if (authorIds.length > 0) {
-      const { data: profs, error: perr } = await supabase
-        .from('profiles')
-        .select('id, full_name')
-        .in('id', authorIds);
-      if (!perr && Array.isArray(profs)) {
-        profilesMap = new Map(profs.map((p) => [p.id, p.full_name]));
-      }
-    }
-
-    const enriched = base.map((c) => ({
-      ...c,
-      author: profilesMap.get(c.author_id) || 'Anonim',
-    }));
-
-    setComments(enriched);
-    setLoading(false);
-  }, [toast, statusFilter]);
-
-  useEffect(() => {
-    fetchComments();
-  }, [fetchComments]);
-
-  const deleteComment = async (id) => {
-    const { error } = await supabase.from('ticket_comments').delete().eq('id', id);
-    if (error) {
-      toast({ variant: 'destructive', title: 'Błąd usuwania komentarza', description: error.message });
-    } else {
-      toast({ title: 'Komentarz usunięty' });
-      fetchComments();
-    }
-  };
-
-  if (loading) return <div className="flex justify-center p-8"><Loader2 className="w-8 h-8 animate-spin" /></div>;
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <MessageCircle className="w-4 h-4 text-muted-foreground" />
-        <span className="text-sm text-muted-foreground">Komentarze do zgłoszeń</span>
-      </div>
-
-      {comments.length === 0 ? (
-        <p className="text-center text-muted-foreground p-8">Brak komentarzy.</p>
-      ) : (
-        <div className="divide-y divide-border/50">
-          {comments.map((c) => (
-            <div key={c.id} className="py-4 flex flex-col sm:flex-row sm:items-center gap-3">
-              <div className="flex-1">
-                <div className="text-sm text-muted-foreground">
-                  #{String(c.id)} • Autor: {c.author} • Zgłoszenie: <Link to={`/panel/zgloszenia/${c.ticket_id}`} className="underline hover:text-primary">{c.diagnosis_requests?.device || c.ticket_id}</Link> • {new Date(c.created_at).toLocaleString('pl-PL')}
-                </div>
-                <div className="mt-1 whitespace-pre-wrap">{c.body}</div>
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button size="sm" variant="outline" className="h-8 border-destructive text-destructive hover:bg-destructive hover:text-white">Usuń</Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Usunąć komentarz?</AlertDialogTitle>
-                      <AlertDialogDescription>Tej operacji nie można cofnąć.</AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Anuluj</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => deleteComment(c.id)}>Usuń</AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
-
 const AdminModeration = () => {
   return (
     <PageTransition>
@@ -471,10 +364,9 @@ const AdminModeration = () => {
       <SectionTitle subtitle="Zarządzaj opiniami i zgłoszeniami">Panel Moderacji</SectionTitle>
       
       <Tabs defaultValue="tickets" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="reviews"><MessageSquare className="w-4 h-4 mr-2" />Opinie</TabsTrigger>
           <TabsTrigger value="tickets"><Ticket className="w-4 h-4 mr-2" />Zgłoszenia</TabsTrigger>
-          <TabsTrigger value="comments"><MessageCircle className="w-4 h-4 mr-2" />Komentarze</TabsTrigger>
         </TabsList>
         <TabsContent value="reviews">
           <Card className="bg-card/80 border-primary/20 backdrop-blur-sm">
@@ -495,17 +387,6 @@ const AdminModeration = () => {
             </CardHeader>
             <CardContent>
               <TicketsTab />
-            </CardContent>
-          </Card>
-        </TabsContent>
-        <TabsContent value="comments">
-          <Card className="bg-card/80 border-secondary/20 backdrop-blur-sm">
-            <CardHeader>
-              <CardTitle>Komentarze do zgłoszeń</CardTitle>
-              <CardDescription>Moderuj komentarze: zmieniaj status, usuwaj niewłaściwe treści.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <CommentsTab />
             </CardContent>
           </Card>
         </TabsContent>

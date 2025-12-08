@@ -11,6 +11,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Phone, Mail, MapPin, Clock, Send, AlertCircle } from 'lucide-react';
 import emailService from '@/services/emailService';
 import PageTransition from '@/components/PageTransition';
+import { supabase } from '@/lib/supabaseClient';
 
 // Kategorie zgłoszeń z priorytetami
 const TICKET_CATEGORIES = [
@@ -136,85 +137,86 @@ const Contact = () => {
     return true;
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!validateForm()) return;
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  if (!validateForm()) return;
+  setIsSubmitting(true);
 
-    setIsSubmitting(true);
+  try {
+    const ticketId = `TKT-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
+    const { data: authData } = await supabase.auth.getUser();
+    const userId = authData?.user?.id || null;
 
-    try {
-      // Generuj ID zgłoszenia
-      const ticketId = `TKT-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
-      
-      // Przygotuj dane dla systemu email
-      const emailData = {
-        id: ticketId,
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        device: formData.deviceType,
-        message: formData.message,
-        category: formData.category,
-        priority: formData.priority,
-        urgencyLevel: formData.urgencyLevel,
-        subject: formData.subject,
-        createdAt: new Date().toISOString(),
-        clientInfo: {
-          userAgent: navigator.userAgent,
-          language: navigator.language,
-          platform: navigator.platform,
-          timestamp: Date.now()
-        }
-      };
+    // Zapis do tabeli requests (bez category/subject)
+    const { error: dbError } = await supabase.from('requests').insert({
+      request_id: ticketId,
+      type: formData.category || 'contact',
+      source_page: 'contact',
+      customer_name: formData.name,
+      customer_email: formData.email,
+      customer_phone: formData.phone,
+      device_type: formData.deviceType || null,
+      device_model: null,
+      device_description: null,
+      message: formData.message,
+      priority: formData.priority || 'medium',
+      status: 'nowe',
+      user_id: userId,
+      source_url: window.location.href,
+      user_agent: navigator.userAgent,
+    });
+    if (dbError) throw dbError;
 
-      // Wyślij email do administratora
-      await emailService.sendRepairRequest(emailData);
+    // E-mail jak dotąd
+    const emailData = {
+      id: ticketId,
+      name: formData.name,
+      email: formData.email,
+      phone: formData.phone,
+      device: formData.deviceType,
+      message: formData.message,
+      category: formData.category,
+      priority: formData.priority,
+      urgencyLevel: formData.urgencyLevel,
+      subject: formData.subject,
+      createdAt: new Date().toISOString(),
+      clientInfo: {
+        userAgent: navigator.userAgent,
+        language: navigator.language,
+        platform: navigator.platform,
+        timestamp: Date.now()
+      }
+    };
+    await emailService.sendRepairRequest(emailData);
 
-      // Wyślij potwierdzenie do klienta
-      const confirmationData = {
-        email: formData.email,
-        ticketId,
-        category: TICKET_CATEGORIES.find(c => c.value === formData.category)?.label,
-        priority: formData.priority,
-        estimatedResponse: getEstimatedResponseTime(formData.priority),
-        supportEmail: 'kontakt@byteclinic.pl',
-        supportPhone: '+48 724 316 523'
-      };
+    toast({
+      title: "Zgłoszenie wysłane!",
+      description: `Twoje zgłoszenie ${ticketId} zostało przekazane do zespołu. Otrzymasz odpowiedź w ciągu ${getEstimatedResponseTime(formData.priority)}.`,
+    });
 
-      // TODO: Dodać template potwierdzenia
-      // await emailService.sendTicketConfirmation(confirmationData);
-
-      toast({
-        title: "Zgłoszenie wysłane!",
-        description: `Twoje zgłoszenie ${ticketId} zostało przekazane do zespołu. Otrzymasz odpowiedź w ciągu ${getEstimatedResponseTime(formData.priority)}.`,
-      });
-
-      // Resetuj formularz
-      setFormData({
-        name: '',
-        email: '',
-        phone: '',
-        category: '',
-        priority: 'medium',
-        subject: '',
-        message: '',
-        deviceType: '',
-        urgencyLevel: 'normal'
-      });
-      setAutoMessage('');
-
-    } catch (error) {
-      console.error('Błąd wysyłania zgłoszenia:', error);
-      toast({
-        variant: "destructive",
-        title: "Błąd wysyłania",
-        description: "Wystąpił błąd podczas wysyłania zgłoszenia. Spróbuj ponownie lub skontaktuj się telefonicznie.",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    setFormData({
+      name: '',
+      email: '',
+      phone: '',
+      category: '',
+      priority: 'medium',
+      subject: '',
+      message: '',
+      deviceType: '',
+      urgencyLevel: 'normal'
+    });
+    setAutoMessage('');
+  } catch (error) {
+    console.error('Błąd wysyłania zgłoszenia:', error);
+    toast({
+      variant: "destructive",
+      title: "Błąd wysyłania",
+      description: "Wystąpił błąd podczas wysyłania zgłoszenia. Spróbuj ponownie lub skontaktuj się telefonicznie.",
+    });
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   const getEstimatedResponseTime = (priority) => {
     const responseTimes = {

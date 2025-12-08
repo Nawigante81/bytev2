@@ -116,7 +116,6 @@ const BookingSystem = () => {
 
   const handleSubmit = async () => {
     setIsLoading(true);
-
     try {
       const selectedServiceData = serviceTypes.find(s => s.id === selectedService);
       const bookingId = 'BC-' + Math.random().toString(36).substr(2, 6).toUpperCase();
@@ -136,31 +135,36 @@ const BookingSystem = () => {
         description: customerInfo.description,
       };
 
-      const { data, error } = await supabase.functions.invoke('create-booking', {
-        body: bookingData,
+      const { data: fnData, error } = await supabase.functions.invoke('create-booking', { body: bookingData });
+      if (error) throw new Error(error.message || 'Błąd po stronie funkcji');
+      console.log('✅ Rezerwacja utworzona:', fnData);
+
+      const { data: authData } = await supabase.auth.getUser();
+      const userId = authData?.user?.id || null;
+      const { error: dbError } = await supabase.from('requests').insert({
+        request_id: bookingId,
+        type: 'booking',
+        source_page: 'rezerwacja',
+        customer_name: bookingData.name,
+        customer_email: bookingData.email,
+        customer_phone: bookingData.phone,
+        device_type: bookingData.device,
+        device_model: null,
+        device_description: bookingData.description,
+        message: `Rezerwacja usługi: ${bookingData.service} (${bookingData.date} ${bookingData.time})`,
+        priority: 'medium',
+        status: 'nowe',
+        user_id: userId,
+        source_url: window.location.href,
+        user_agent: navigator.userAgent,
       });
+      if (dbError) throw dbError;
 
-      if (error) {
-        console.error('Supabase function error:', error);
-        throw new Error(error.message || 'Błąd po stronie funkcji');
-      }
-
-      console.log('✅ Rezerwacja utworzona:', data);
-
-      try {
-        completeBooking?.(bookingData);
-      } catch (completeError) {
-        console.warn('completeBooking rzucił błędem, ale rezerwacja jest OK:', completeError);
-      }
-
+      completeBooking?.(bookingData);
       setBookingConfirmed(true);
     } catch (error) {
       console.error('Błąd rezerwacji:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Błąd rezerwacji',
-        description: 'Wystąpił problem. Spróbuj ponownie lub zadzwoń do nas.',
-      });
+      toast({ variant: 'destructive', title: 'Błąd rezerwacji', description: 'Wystąpił problem. Spróbuj ponownie lub zadzwoń do nas.' });
     } finally {
       setIsLoading(false);
     }

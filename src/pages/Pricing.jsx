@@ -14,9 +14,10 @@ import { useToast } from '@/components/ui/use-toast';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
-import { 
-  Clock, Star, CheckCircle, AlertCircle, Phone, Mail, 
-  Calculator, Shield, Award, Info, ArrowRight, MapPin, Loader2 
+import { supabase } from '@/lib/supabaseClient';
+import {
+  Clock, Star, CheckCircle, AlertCircle, Phone, Mail,
+  Calculator, Shield, Award, Info, ArrowRight, MapPin, Loader2
 } from 'lucide-react';
 
 const Pricing = () => {
@@ -45,19 +46,35 @@ const Pricing = () => {
   };
 
   const handleSubmitQuote = async () => {
-    if (!contactName.trim() || !contactEmail.trim()) {
-      toast({
-        variant: "destructive",
-        title: "Błąd",
-        description: "Proszę wypełnić imię i nazwisko oraz email.",
-      });
+    if (!contactName || !contactEmail) {
+      toast({ variant: "destructive", title: "Uzupełnij dane", description: "Imię i e-mail są wymagane." });
       return;
     }
-
     setIsSubmitting(true);
-
     try {
-      // Wyślij zapytanie do systemu powiadomień
+      const quoteId = `QUOTE-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
+      const { data: authData } = await supabase.auth.getUser();
+      const userId = authData?.user?.id || null;
+
+      const { error: dbError } = await supabase.from('requests').insert({
+        request_id: quoteId,
+        type: 'quote',
+        source_page: 'cennik',
+        customer_name: contactName,
+        customer_email: contactEmail,
+        customer_phone: null,
+        device_type: contactService || null,
+        device_model: null,
+        device_description: null,
+        message: contactMsg || 'Zapytanie o wycenę z cennika',
+        priority: 'medium',
+        status: 'nowe',
+        user_id: userId,
+        source_url: window.location.href,
+        user_agent: navigator.userAgent,
+      });
+      if (dbError) throw dbError;
+
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-system`, {
         method: 'POST',
         headers: {
@@ -72,40 +89,17 @@ const Pricing = () => {
             phone: 'Nie podano',
             device: contactService || 'Wycena indywidualna',
             message: contactMsg || 'Zapytanie o wycenę z cennika',
-            id: 'QUOTE-' + Math.random().toString(36).substr(2, 9).toUpperCase()
-          }
-        })
+            id: quoteId,
+          },
+        }),
       });
+      if (!response.ok) throw new Error('Błąd wysyłania zapytania');
 
-      if (!response.ok) {
-        throw new Error('Błąd wysyłania zapytania');
-      }
-
-      const result = await response.json();
-      
-      if (result.success) {
-        toast({
-          title: "✅ Zapytanie wysłane",
-          description: "Dziękujemy! Skontaktujemy się z Tobą w ciągu 24h.",
-        });
-        
-        // Resetuj formularz
-        setContactName('');
-        setContactEmail('');
-        setContactMsg('');
-        setContactService('');
-        setContactOpen(false);
-      } else {
-        throw new Error('Błąd przetwarzania zapytania');
-      }
-      
+      toast({ title: "✅ Zapytanie wysłane", description: "Dziękujemy! Skontaktujemy się z Tobą w ciągu 24h." });
+      setContactName(''); setContactEmail(''); setContactMsg(''); setContactService(''); setContactOpen(false);
     } catch (error) {
       console.error('Błąd wysyłania zapytania:', error);
-      toast({
-        variant: "destructive",
-        title: "Błąd wysyłania",
-        description: "Nie udało się wysłać zapytania. Spróbuj ponownie lub zadzwoń do nas.",
-      });
+      toast({ variant: "destructive", title: "Błąd wysyłania", description: "Nie udało się wysłać zapytania. Spróbuj ponownie lub zadzwoń do nas." });
     } finally {
       setIsSubmitting(false);
     }
