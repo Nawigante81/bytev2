@@ -115,7 +115,7 @@ const CustomerPanel = () => {
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('recipient_email', user.email)  // ✅ NAPRAWIONE: użyj recipient_email zamiast user_id
         .order('created_at', { ascending: false })
         .limit(10);
       
