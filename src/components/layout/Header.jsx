@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, LogOut, LayoutDashboard, Wrench, ChevronDown, Download, TerminalSquare, ShieldCheck, ShoppingCart as ShoppingCartIcon, Home, Store, MessageSquare, Rss, Briefcase, Calendar, Search } from 'lucide-react';
+import { Menu, X, LogOut, LayoutDashboard, Wrench, ChevronDown, Download, TerminalSquare, ShieldCheck, ShoppingCart as ShoppingCartIcon, Home, Store, MessageSquare, Rss, Briefcase, Calendar, Search, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useCart } from '@/hooks/useCart';
