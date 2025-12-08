@@ -169,10 +169,36 @@ export const AuthProvider = ({ children }) => {
     const { error } = await supabase.auth.signOut();
 
     if (error) {
+      // Obsługa specyficznego błędu "Auth session missing!" - oznacza, że sesja już nie istnieje
+      if (error.message === 'Auth session missing!' || error.message.includes('Auth session missing')) {
+        // Wyczyść lokalny stan nawet jeśli sesja już nie istnieje
+        setSession(null);
+        setUser(null);
+        setProfile(null);
+        setLoading(false);
+        
+        // Pokaż informacyjny komunikat zamiast błędu
+        toast({
+          variant: "default",
+          title: "Wylogowanie",
+          description: "Zostałeś pomyślnie wylogowany.",
+        });
+        
+        return { error: null }; // Traktuj jako pomyślne wylogowanie
+      } else {
+        // Inne błędy - pokaż standardowy komunikat błędu
+        toast({
+          variant: "destructive",
+          title: "Błąd wylogowania",
+          description: error.message || "Coś poszło nie tak",
+        });
+      }
+    } else {
+      // Pomyślne wylogowanie - pokaż informacyjny komunikat
       toast({
-        variant: "destructive",
-        title: "Błąd wylogowania",
-        description: error.message || "Coś poszło nie tak",
+        variant: "default",
+        title: "Wylogowanie",
+        description: "Zostałeś pomyślnie wylogowany.",
       });
     }
 
