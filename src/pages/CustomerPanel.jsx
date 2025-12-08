@@ -111,28 +111,24 @@ const CustomerPanel = () => {
 
   const fetchNotifications = useCallback(async () => {
     if (!user) return;
-    // Symulacja powiadomień - w rzeczywistości z bazy danych
-    const mockNotifications = [
-      {
-        id: 1,
-        type: 'status_update',
-        title: 'Status zgłoszenia zmieniony',
-        message: 'Twoje zgłoszenie #abc123 przeszło do etapu "W naprawie"',
-        created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-        read: false,
-        ticket_id: 'test-123'
-      },
-      {
-        id: 2,
-        type: 'completion',
-        title: 'Naprawa zakończona',
-        message: 'Urządzenie jest gotowe do odbioru!',
-        created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-        read: true,
-        ticket_id: 'test-456'
+    try {
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+      
+      if (!error && data) {
+        setNotifications(data);
+      } else {
+        // Tabela notifications może nie istnieć - ustaw pustą listę
+        setNotifications([]);
       }
-    ];
-    setNotifications(mockNotifications);
+    } catch (err) {
+      console.warn('Tabela notifications nie istnieje:', err);
+      setNotifications([]);
+    }
   }, [user]);
 
   useEffect(() => {
@@ -258,11 +254,7 @@ const CustomerPanel = () => {
           </Button>
         </div>
       </div>
-      {location.state?.reason === 'forbidden' && (
-        <div className="mb-6 border border-destructive/40 bg-destructive/10 text-destructive p-4 rounded">
-          Nie masz uprawnień administracyjnych. Wyświetlono Panel Klienta.
-        </div>
-      )}
+
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
         <Card className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border-blue-500/20">

@@ -365,7 +365,7 @@ const CommentsTab = () => {
     setLoading(true);
     let query = supabase
       .from('ticket_comments')
-      .select('id, ticket_id, user_id, body, is_private, status, created_at, diagnosis_requests(id, device)')
+      .select('id, ticket_id, author_id, body, created_at, diagnosis_requests(id, device)')
       .order('created_at', { ascending: false });
 
     if (statusFilter !== 'ALL') {
@@ -381,13 +381,13 @@ const CommentsTab = () => {
     }
 
     const base = data || [];
-    const userIds = Array.from(new Set(base.map((c) => c.user_id).filter(Boolean)));
+    const authorIds = Array.from(new Set(base.map((c) => c.author_id).filter(Boolean)));
     let profilesMap = new Map();
-    if (userIds.length > 0) {
+    if (authorIds.length > 0) {
       const { data: profs, error: perr } = await supabase
         .from('profiles')
         .select('id, full_name')
-        .in('id', userIds);
+        .in('id', authorIds);
       if (!perr && Array.isArray(profs)) {
         profilesMap = new Map(profs.map((p) => [p.id, p.full_name]));
       }
@@ -395,7 +395,7 @@ const CommentsTab = () => {
 
     const enriched = base.map((c) => ({
       ...c,
-      author: profilesMap.get(c.user_id) || 'Anonim',
+      author: profilesMap.get(c.author_id) || 'Anonim',
     }));
 
     setComments(enriched);
@@ -405,16 +405,6 @@ const CommentsTab = () => {
   useEffect(() => {
     fetchComments();
   }, [fetchComments]);
-
-  const updateStatus = async (id, newStatus) => {
-    const { error } = await supabase.from('ticket_comments').update({ status: newStatus }).eq('id', id);
-    if (error) {
-      toast({ variant: 'destructive', title: 'Błąd zmiany statusu', description: error.message });
-    } else {
-      toast({ title: 'Zmieniono status komentarza' });
-      fetchComments();
-    }
-  };
 
   const deleteComment = async (id) => {
     const { error } = await supabase.from('ticket_comments').delete().eq('id', id);
@@ -426,30 +416,13 @@ const CommentsTab = () => {
     }
   };
 
-  const statusBadge = (status) => {
-    const map = {
-      visible: 'bg-green-500/20 text-green-300',
-      hidden: 'bg-yellow-500/20 text-yellow-300',
-      rejected: 'bg-red-500/20 text-red-300',
-    };
-    return <span className={cn('px-2 py-1 text-xs rounded-full font-mono uppercase', map[status] || 'bg-gray-500/20 text-gray-300')}>{status}</span>;
-  };
-
   if (loading) return <div className="flex justify-center p-8"><Loader2 className="w-8 h-8 animate-spin" /></div>;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
         <MessageCircle className="w-4 h-4 text-muted-foreground" />
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[200px]"><SelectValue placeholder="Filtruj status" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">Wszystkie</SelectItem>
-            <SelectItem value="visible">Widoczne</SelectItem>
-            <SelectItem value="hidden">Ukryte</SelectItem>
-            <SelectItem value="rejected">Odrzucone</SelectItem>
-          </SelectContent>
-        </Select>
+        <span className="text-sm text-muted-foreground">Komentarze do zgłoszeń</span>
       </div>
 
       {comments.length === 0 ? (
@@ -460,22 +433,11 @@ const CommentsTab = () => {
             <div key={c.id} className="py-4 flex flex-col sm:flex-row sm:items-center gap-3">
               <div className="flex-1">
                 <div className="text-sm text-muted-foreground">
-                  #{String(c.id)} • Autor: {c.author} • Zgłoszenie: <Link to={`/panel/zgloszenia/${c.ticket_id}`} className="underline hover:text-primary">{c.diagnosis_requests?.device || c.ticket_id}</Link> • {new Date(c.created_at).toLocaleString('pl-PL')} {c.is_private ? (<span className="ml-1 px-2 py-0.5 text-xs rounded-full bg-zinc-500/20 text-zinc-300">prywatny</span>) : null}
+                  #{String(c.id)} • Autor: {c.author} • Zgłoszenie: <Link to={`/panel/zgloszenia/${c.ticket_id}`} className="underline hover:text-primary">{c.diagnosis_requests?.device || c.ticket_id}</Link> • {new Date(c.created_at).toLocaleString('pl-PL')}
                 </div>
                 <div className="mt-1 whitespace-pre-wrap">{c.body}</div>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
-                {statusBadge(c.status)}
-                <Select value={c.status} onValueChange={(val) => updateStatus(c.id, val)}>
-                  <SelectTrigger className="w-[140px] h-8 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="visible">Widoczne</SelectItem>
-                    <SelectItem value="hidden">Ukryte</SelectItem>
-                    <SelectItem value="rejected">Odrzucone</SelectItem>
-                  </SelectContent>
-                </Select>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button size="sm" variant="outline" className="h-8 border-destructive text-destructive hover:bg-destructive hover:text-white">Usuń</Button>

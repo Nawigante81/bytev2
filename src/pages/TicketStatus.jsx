@@ -55,7 +55,7 @@ const TicketStatus = () => {
   const fetchTicket = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase
-      .from('requests')
+      .from('diagnosis_requests')
       .select('*')
       .eq('id', id)
       .single();
@@ -81,7 +81,7 @@ const TicketStatus = () => {
     const { data, error, count } = await supabase
       .from('ticket_comments')
       .select('*', { count: 'exact' })
-      .eq('request_id', id)
+      .eq('ticket_id', id)
       .order('created_at', { ascending: true })
       .range(from, to);
     if (error) {
@@ -99,7 +99,7 @@ const TicketStatus = () => {
     const { data, error } = await supabase
       .from('ticket_attachments')
       .select('*')
-      .eq('request_id', id)
+      .eq('diagnosis_request_id', id)
       .order('created_at', { ascending: false });
     if (error) {
       console.error('Attachments error:', error);
@@ -121,7 +121,7 @@ const TicketStatus = () => {
     if (!id) return;
     const channel = supabase
       .channel(`ticket-comments-${id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ticket_comments', filter: `request_id=eq.${id}` }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ticket_comments', filter: `ticket_id=eq.${id}` }, () => {
         // Simplest: refetch current page when any change occurs
         fetchComments();
       })
@@ -142,10 +142,9 @@ const TicketStatus = () => {
     if (!comment.trim()) return;
     setIsSubmitting(true);
     const { error } = await supabase.from('ticket_comments').insert({
-      request_id: id,
-      user_id: user.id,
+      ticket_id: id,
+      author_id: user.id,
       body: comment.trim(),
-      is_private: false,
     });
     setIsSubmitting(false);
     if (error) {
@@ -176,7 +175,7 @@ const TicketStatus = () => {
       if (upErr) throw upErr;
 
       const { error: insErr } = await supabase.from('ticket_attachments').insert({
-        request_id: ticket.id,
+        diagnosis_request_id: ticket.id,
         user_id: user.id,
         storage_path: storagePath,
         file_name: file.name,
