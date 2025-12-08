@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test API Kontaktowego - ByteClinic</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #3b82f6;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        button {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            display: none;
+        }
+        .result.success {
+            background: #d1fae5;
+            border: 1px solid #10b981;
+            color: #065f46;
+        }
+        .result.error {
+            background: #fee2e2;
+            border: 1px solid #ef4444;
+            color: #991b1b;
+        }
+        .result.info {
+            background: #dbeafe;
+            border: 1px solid #3b82f6;
+            color: #1e40af;
+        }
+        .debug {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .debug-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #334155;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Test API Kontaktowego</h1>
+        
+        <div class="form-group">
+            <label>Endpoint URL:</label>
+            <input type="text" id="endpoint" value="https://wllxicmacmfzmqdnovhp.supabase.co/functions/v1/notify-new-diagnosis" />
+        </div>
+
+        <div class="form-group">
+            <label>API Key (VITE_SUPABASE_ANON_KEY):</label>
+            <input type="text" id="apikey" value="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndsbHhpY21hY21mem1xZG5vdmhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5NDA4MjcsImV4cCI6MjA4MDUxNjgyN30.9uV-EYGP8JvVuqmEPIRyTG7hCHPaKabc8MxnxzHl8ok" />
+        </div>
+
+        <div class="form-group">
+            <label>Imię i nazwisko:</label>
+            <input type="text" id="name" value="Jan Testowy" />
+        </div>
+
+        <div class="form-group">
+            <label>Email:</label>
+            <input type="email" id="email" value="test@example.com" />
+        </div>
+
+        <div class="form-group">
+            <label>Telefon:</label>
+            <input type="tel" id="phone" value="+48 123 456 789" />
+        </div>
+
+        <div class="form-group">
+            <label>Kategoria:</label>
+            <select id="category">
+                <option value="repair_request">Naprawa urządzenia</option>
+                <option value="booking_inquiry">Pytanie o rezerwację</option>
+                <option value="technical_support">Wsparcie techniczne</option>
+                <option value="general_inquiry">Pytanie ogólne</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Wiadomość:</label>
+            <textarea id="message">To jest testowa wiadomość z formularza kontaktowego.</textarea>
+        </div>
+
+        <button onclick="testAPI()">🚀 Wyślij testowe zgłoszenie</button>
+
+        <div id="result" class="result"></div>
+
+        <div class="debug">
+            <div class="debug-title">📊 Debug Info:</div>
+            <div id="debug"></div>
+        </div>
+    </div>
+
+    <script>
+        async function testAPI() {
+            const resultDiv = document.getElementById('result');
+            const debugDiv = document.getElementById('debug');
+            const button = document.querySelector('button');
+            
+            button.disabled = true;
+            button.textContent = '⏳ Wysyłanie...';
+            
+            resultDiv.style.display = 'none';
+            debugDiv.textContent = '';
+
+            const endpoint = document.getElementById('endpoint').value;
+            const apikey = document.getElementById('apikey').value;
+            const name = document.getElementById('name').value;
+            const email = document.getElementById('email').value;
+            const phone = document.getElementById('phone').value;
+            const category = document.getElementById('category').value;
+            const message = document.getElementById('message').value;
+
+            const ticketId = `TKT-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
+
+            const requestData = {
+                to: email,
+                subject: 'Nowe zgłoszenie naprawcze',
+                data: {
+                    id: ticketId,
+                    name: name,
+                    email: email,
+                    phone: phone,
+                    device: 'Laptop',
+                    message: message,
+                    category: category,
+                    priority: 'medium',
+                    urgencyLevel: 'normal',
+                    subject: 'Test zgłoszenia',
+                    createdAt: new Date().toISOString(),
+                    clientInfo: {
+                        userAgent: navigator.userAgent,
+                        language: navigator.language,
+                        platform: navigator.platform,
+                        timestamp: Date.now()
+                    }
+                }
+            };
+
+            let debugInfo = `🌐 Request URL: ${endpoint}\n`;
+            debugInfo += `📝 Method: POST\n`;
+            debugInfo += `🔑 Authorization: Bearer ${apikey.substring(0, 20)}...\n`;
+            debugInfo += `📦 Content-Type: application/json\n\n`;
+            debugInfo += `📤 Request Body:\n${JSON.stringify(requestData, null, 2)}\n\n`;
+
+            try {
+                const startTime = Date.now();
+                
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${apikey}`,
+                        'Content-Type': 'application/json',
+                        'apikey': apikey
+                    },
+                    body: JSON.stringify(requestData)
+                });
+
+                const endTime = Date.now();
+                const duration = endTime - startTime;
+
+                debugInfo += `⏱️ Response Time: ${duration}ms\n`;
+                debugInfo += `📊 Status: ${response.status} ${response.statusText}\n`;
+                debugInfo += `🔗 URL: ${response.url}\n`;
+                debugInfo += `📋 Headers:\n`;
+                
+                response.headers.forEach((value, key) => {
+                    debugInfo += `  ${key}: ${value}\n`;
+                });
+
+                debugInfo += `\n📥 Response Body:\n`;
+
+                let responseData;
+                const contentType = response.headers.get('content-type');
+                
+                if (contentType && contentType.includes('application/json')) {
+                    responseData = await response.json();
+                    debugInfo += JSON.stringify(responseData, null, 2);
+                } else {
+                    responseData = await response.text();
+                    debugInfo += responseData;
+                }
+
+                debugDiv.textContent = debugInfo;
+
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `
+                        <strong>✅ Sukces!</strong><br>
+                        Status: ${response.status}<br>
+                        Zgłoszenie: ${ticketId}<br>
+                        Czas odpowiedzi: ${duration}ms
+                    `;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `
+                        <strong>❌ Błąd ${response.status}</strong><br>
+                        ${response.statusText}<br>
+                        <small>${typeof responseData === 'string' ? responseData : JSON.stringify(responseData)}</small>
+                    `;
+                }
+
+            } catch (error) {
+                debugInfo += `\n❌ ERROR:\n${error.message}\n${error.stack}`;
+                debugDiv.textContent = debugInfo;
+
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `
+                    <strong>❌ Błąd połączenia</strong><br>
+                    ${error.message}<br>
+                    <small>Sprawdź konsolę przeglądarki (F12) dla więcej szczegółów</small>
+                `;
+            } finally {
+                resultDiv.style.display = 'block';
+                button.disabled = false;
+                button.textContent = '🚀 Wyślij testowe zgłoszenie';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const debugDiv = document.getElementById('debug');
+            debugDiv.textContent = `🔍 Gotowy do testowania!\n\nKliknij przycisk "Wyślij testowe zgłoszenie" aby przetestować API.\n\nSprawdź również:\n- DevTools → Network (F12)\n- Zakładka Console dla błędów CORS\n- Status code i response headers`;
+        });
+    </script>
+</body>
+</html>

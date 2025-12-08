@@ -15,7 +15,9 @@ const shortId = (id: string) => id?.slice(0, 8) || id;
 // --- SEND EMAIL VIA SUPABASE ---
 async function sendEmail(to: string, subject: string, html: string, record: any) {
   // Create notification record in database
+  const notificationId = `notif-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   const notificationData = {
+    notification_id: notificationId,
     type: 'repair_request',
     recipient_email: to,
     subject: subject,
@@ -37,7 +39,8 @@ async function sendEmail(to: string, subject: string, html: string, record: any)
     headers: {
       'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
       'Content-Type': 'application/json',
-      'apikey': SUPABASE_SERVICE_ROLE_KEY
+      'apikey': SUPABASE_SERVICE_ROLE_KEY,
+      'Prefer': 'return=representation'
     },
     body: JSON.stringify(notificationData)
   });
@@ -48,23 +51,77 @@ async function sendEmail(to: string, subject: string, html: string, record: any)
     throw new Error(`Database insert error: ${insertResponse.statusText}`);
   }
 
-  const result = await insertResponse.json();
-  console.log("Notification created:", result[0]?.id, "for:", to);
+  const responseText = await insertResponse.text();
+  console.log("Database response:", responseText);
+
+  let result;
+  if (responseText) {
+    try {
+      result = JSON.parse(responseText);
+      console.log("Notification created:", result[0]?.id, "for:", to);
+    } catch (e) {
+      console.log("Could not parse response, but insert was successful");
+      result = [{ id: notificationId }];
+    }
+  } else {
+    console.log("Empty response, but insert was successful");
+    result = [{ id: notificationId }];
+  }
+
   return result;
 }
 
 // --- HTTP HANDLER ---
 Deno.serve(async (req: Request) => {
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  };
+
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
   if (req.method !== "POST") {
-    return new Response("Method Not Allowed", { status: 405 });
+    return new Response("Method Not Allowed", {
+      status: 405,
+      headers: corsHeaders
+    });
   }
 
   try {
-    const body = await req.json();
-    const record = body?.record;
+    const contentType = req.headers.get("content-type");
+    console.log("Content-Type:", contentType);
+
+    const bodyText = await req.text();
+    console.log("Raw body:", bodyText);
+
+    let body;
+    try {
+      body = JSON.parse(bodyText);
+    } catch (parseError) {
+      console.error("JSON parse error:", parseError);
+      return new Response(JSON.stringify({
+        ok: false,
+        error: `JSON parse error: ${parseError.message}`,
+        receivedBody: bodyText.substring(0, 100)
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const record = body?.record || body?.data;
 
     if (!record || !record.id) {
-      return new Response("Missing record in payload", { status: 400 });
+      return new Response(JSON.stringify({
+        ok: false,
+        error: "Missing record in payload",
+        receivedBody: body
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Extract fields
@@ -101,21 +158,22 @@ Deno.serve(async (req: Request) => {
     // Send email
     await sendEmail(ADMIN_EMAIL, subject, html, record);
 
-    return new Response(JSON.stringify({ 
-      ok: true, 
+    return new Response(JSON.stringify({
+      ok: true,
       message: "Email sent successfully",
-      id: id 
+      id: id
     }), {
-      headers: { "Content-Type": "application/json" },
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
     console.error("Function error:", error);
-    return new Response(JSON.stringify({ 
-      ok: false, 
-      error: String(error) 
+    return new Response(JSON.stringify({
+      ok: false,
+      error: String(error)
     }), {
       status: 500,
-      headers: { "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
