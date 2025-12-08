@@ -28,8 +28,6 @@ const navLinks = [
   { name: 'Sklep', path: '/sklep', icon: Store },
   { name: 'Opinie', path: '/opinie', icon: MessageSquare },
   { name: 'Blog', path: '/blog', icon: Rss },
-  { name: 'Rezerwacja', path: '/rezerwacja', icon: Calendar },
-  { name: 'Śledzenie', path: '/sledzenie', icon: Search },
   { name: 'Kontakt', path: '/kontakt', icon: MessageSquare },
   { 
     name: 'Lab', 
@@ -267,6 +265,12 @@ const Header = () => {
                     <DropdownMenuItem asChild>
                       <Link to="/panel"><LayoutDashboard className="mr-2 h-4 w-4" /> Mój panel</Link>
                     </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/rezerwacja"><Calendar className="mr-2 h-4 w-4" /> Rezerwacja</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/sledzenie"><Search className="mr-2 h-4 w-4" /> Śledzenie</Link>
+                    </DropdownMenuItem>
                     {profile?.role === 'admin' && (
                       <>
                         <DropdownMenuItem asChild>
@@ -333,6 +337,12 @@ const Header = () => {
                       <>
                         <Button asChild size="lg" className="w-full" onClick={() => setIsOpen(false)}>
                           <Link to="/panel">Mój Panel</Link>
+                        </Button>
+                        <Button asChild size="lg" variant="outline" className="w-full" onClick={() => setIsOpen(false)}>
+                          <Link to="/rezerwacja">Rezerwacja</Link>
+                        </Button>
+                        <Button asChild size="lg" variant="outline" className="w-full" onClick={() => setIsOpen(false)}>
+                          <Link to="/sledzenie">Śledzenie</Link>
                         </Button>
                         <Button variant="secondary" size="lg" className="w-full" onClick={() => { signOut(); setIsOpen(false); }}>Wyloguj</Button>
                       </>
