@@ -32,19 +32,22 @@ Przed wdrożeniem upewnij się, że:
    - W menu bocznym kliknij **SQL Editor**
    - Kliknij **New Query**
 
-3. **Wklej zawartość migracji**
-   - Otwórz plik: `supabase/migrations/20251210_setup_auto_notifications.sql`
-   - Skopiuj całą zawartość
-   - Wklej do SQL Editor
+3. **Wklej zawartość odpowiedniej migracji**
+   - ✅ **Development / Staging:** `supabase/migrations/20251210_setup_auto_notifications.sql`
+   - 🟢 **Production (Database Webhook, plan Pro):** `supabase/migrations/20251210_enable_notifications_webhook.sql`
+   - Upewnij się, że w wersji produkcyjnej masz aktywne Database Webhooks w projekcie Supabase
 
 4. **Uruchom migrację**
    - Kliknij **Run** (lub Ctrl + Enter)
    - Poczekaj na potwierdzenie sukcesu
 
 5. **Sprawdź wyniki**
-   - Powinny pojawić się 2 rezultaty:
+   - Dla wersji triggerowej:
      - Lista triggerów (auto_process_notifications)
      - Lista funkcji (trigger_process_pending_notifications)
+   - Dla Database Webhook:
+     - Funkcja `notifications_webhook_dispatch`
+     - Trigger `auto_process_notifications` (ten sam, ale wskazuje nową funkcję)
 
 ### Opcja B: Przez Supabase CLI
 
@@ -52,8 +55,12 @@ Przed wdrożeniem upewnij się, że:
 # Jeśli masz Supabase CLI zainstalowane
 supabase db push
 
-# Lub konkretnie tę migrację
+# Lub konkretną migrację (wybierz odpowiednią)
+# DEV/Staging
 supabase db execute --file supabase/migrations/20251210_setup_auto_notifications.sql
+
+# Production (Database Webhook)
+supabase db execute --file supabase/migrations/20251210_enable_notifications_webhook.sql
 ```
 
 ---
@@ -72,11 +79,11 @@ node deploy-auto-notifications.js
 
 📄 Wczytywanie migracji...
 ✅ Migracja wczytana
-
 🔍 Sprawdzanie stanu systemu...
    ✅ Trigger auto_process_notifications istnieje
-   ✅ Funkcja trigger_process_pending_notifications istnieje
+   ✅ Funkcja trigger_process_pending_notifications (DEV) **lub** notifications_webhook_dispatch (PROD) istnieje
    ✅ Tabela notifications istnieje i jest dostępna
+
 
 ✨ Gotowe!
 ```
@@ -100,26 +107,27 @@ node test-auto-notifications.js
 **Oczekiwany pozytywny wynik:**
 ```
 ✅ System automatycznych powiadomień działa PRAWIDŁOWO
-🎉 Trigger wywołuje edge function automatycznie
+🎉 Trigger/Database Webhook wywołuje edge function automatycznie
 ```
 
 ---
 
-## 🎯 Krok 4: Konfiguracja Service Role Key (opcjonalne)
+## 🎯 Krok 4: Konfiguracja `app.settings` (wymagane dla Database Webhook)
 
-Jeśli chcesz używać GUC zamiast hardcoded URL:
+Database Webhook używa `supabase_functions.http_request`, więc klucz Service Role zostaje pobrany z `app.settings`. Umieść tam **zarówno SRK jak i URL projektu**.
 
 1. **Otwórz SQL Editor w Supabase Dashboard**
 
 2. **Wykonaj query:**
 ```sql
-ALTER DATABASE postgres SET app.settings = 
+ALTER DATABASE postgres SET app.settings =
 '{
-  "service_role_key": "twoj_service_role_key_tutaj"
+  "service_role_key": "twoj_service_role_key_tutaj",
+  "supabase_url": "https://twoj-projekt.supabase.co"
 }'::json;
 ```
 
-3. **Restart connection pool** (może wymagać kilku sekund)
+3. **Restart connection pool** (Settings > Database > Restart)
 
 4. **Sprawdź konfigurację:**
 ```sql
@@ -132,18 +140,27 @@ SELECT current_setting('app.settings', true);
 
 ### Gdzie sprawdzać logi:
 
-#### 1. **Postgres Logs** (triggery i błędy bazy)
+#### 1. **Postgres Logs** (triggery / supabase_functions.http_request)
 ```
 Supabase Dashboard > Logs > Postgres Logs
 ```
 
 Szukaj:
-- ✅ `Triggered process-pending-notifications for [ID]`
-- ⚠️ `Edge call failed: [error]`
+- ✅ `auto_process_notifications` + `notifications_webhook_dispatch`
+- ⚠️ Ostrzeżeń `supabase_functions.http_request` lub `Service Role Key...`
 
-#### 2. **Edge Functions Logs** (wywołania funkcji)
+#### 2. **Database Webhooks Logs**
 ```
-Supabase Dashboard > Edge Functions > 
+Supabase Dashboard > Database > Webhooks > process-pending-notifications
+```
+
+Sprawdź:
+- Czy każde `INSERT` ma status `200`
+- Payload (record, status) oraz ewentualne błędy autoryzacji
+
+#### 3. **Edge Functions Logs** (wywołania funkcji)
+```
+Supabase Dashboard > Edge Functions >
 process-pending-notifications > Logs
 ```
 
@@ -152,18 +169,18 @@ Sprawdź:
 - Czy przetwarza powiadomienia pomyślnie
 - Ewentualne błędy (Resend API, itp.)
 
-#### 3. **Database > Triggers** (weryfikacja triggera)
+#### 4. **Database > Triggers/Webhooks** (weryfikacja obiektu)
 ```
 Supabase Dashboard > Database > Triggers
 ```
 
-Powinien być widoczny: `auto_process_notifications`
+Powinien być widoczny: `auto_process_notifications` wskazujący na `notifications_webhook_dispatch`
 
 ---
 
 ## 🐛 Troubleshooting
 
-### Problem: Trigger nie wywołuje edge function
+### Problem: Trigger/Webhook nie wywołuje edge function
 
 **Możliwe przyczyny:**
 
@@ -172,18 +189,18 @@ Powinien być widoczny: `auto_process_notifications`
     CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA extensions;
     ```
 
-2. **Service Role Key nie jest skonfigurowany**
-   - Sprawdź GUC settings
-   - Lub ustaw hardcoded w funkcji triggera
+2. **Service Role Key lub supabase_url nie są skonfigurowane w `app.settings`**
+   - `SELECT current_setting('app.settings', true);`
+   - Ustaw wartości jak w Kroku 4
 
 3. **Edge function nie jest wdrożona**
    ```bash
    supabase functions deploy process-pending-notifications
    ```
 
-4. **Błąd w net.http_post**
-    - Sprawdź Postgres Logs
-   - Może być timeout lub błąd sieci
+4. **Błąd `supabase_functions.http_request`**
+    - Sprawdź Postgres Logs + Database Webhooks Logs
+    - Zweryfikuj nagłówki Authorization / timeout 5s
 
 ### Problem: Powiadomienia mają status 'pending'
 
@@ -230,18 +247,15 @@ Jeśli trigger czasem się zawiesza:
 
 3. Cron będzie przetwarzał pending co 5 minut jako backup
 
-### Opcja 2: Database Webhooks (najbardziej stabilne)
+### Opcja 2: Database Webhooks (najbardziej stabilne) — PRODUKCJA
 
-1. **Supabase Dashboard > Database > Webhooks**
-2. **Create webhook:**
-   - Name: `process-pending-notifications`
-   - Table: `notifications`
-   - Events: `INSERT`
-   - Filter: `status = 'pending'`
-   - Webhook URL: `https://[project].supabase.co/functions/v1/process-pending-notifications`
+- Uruchom migrację: `supabase/migrations/20251210_enable_notifications_webhook.sql`
+- Zweryfikuj w Dashboardzie (Database > Webhooks), że webhook `process-pending-notifications` jest WŁ.
+- Jeśli potrzebujesz stworzyć webhook ręcznie (fallback):
+  1. **Supabase Dashboard > Database > Webhooks > Create**
+  2. Ustaw: Name `process-pending-notifications`, Table `notifications`, Events `INSERT`, Filter `status = 'pending'`, URL projektu
+  3. Dodaj nagłówki: `Authorization: Bearer [SERVICE_ROLE_KEY]`, `Content-Type: application/json`
 
-3. **Dodaj nagłówki:**
-   - Authorization: `Bearer [SERVICE_ROLE_KEY]`
 
 ---
 
@@ -250,8 +264,8 @@ Jeśli trigger czasem się zawiesza:
 Po wdrożeniu sprawdź:
 
 - [ ] Migracja wykonana bez błędów
-- [ ] Trigger `auto_process_notifications` istnieje
-- [ ] Funkcja `trigger_process_pending_notifications` istnieje
+- [ ] Trigger `auto_process_notifications` istnieje (wskazuje na właściwą funkcję)
+- [ ] Funkcja `trigger_process_pending_notifications` (DEV) lub `notifications_webhook_dispatch` (PROD) istnieje
 - [ ] Tabela `notifications` jest dostępna
 - [ ] Edge function jest wdrożona
 - [ ] Test `test-auto-notifications.js` przeszedł pomyślnie
@@ -266,18 +280,20 @@ Po wdrożeniu sprawdź:
 ✅ System jest gotowy - możesz używać
 
 ### Dla production:
-1. Rozważ **Database Webhooks** zamiast triggera
-2. Dodaj **Cron backup** (polling co 2-5 min)
-3. Skonfiguruj **alerty** dla failed notifications
+1. **Wymagane:** uruchom `20251210_enable_notifications_webhook.sql` (Database Webhook)
+2. Dodaj **Cron backup** (polling co 2-5 min) jako fallback
+3. Skonfiguruj **alerty** dla failed notifications + webhook errors
 4. Implementuj **retry logic** w edge function
-5. **Monitoruj** regularnie logi i metryki
+5. **Monitoruj** regularnie logi i metryki (Postgres + Database Webhooks)
 
 ---
 
 ## 📚 Dodatkowe zasoby
 
 - **Dokumentacja optymalizacji:** `OPTYMALIZACJA_AUTO_NOTIFICATIONS.md`
-- **Migracja:** `supabase/migrations/20251210_setup_auto_notifications.sql`
+- **Migracje:**
+  - `supabase/migrations/20251210_setup_auto_notifications.sql` (DEV)
+  - `supabase/migrations/20251210_enable_notifications_webhook.sql` (PROD)
 - **Skrypt wdrożenia:** `deploy-auto-notifications.js`
 - **Skrypt testowy:** `test-auto-notifications.js`
 

@@ -164,16 +164,14 @@ service_key text := current_setting('app.settings', true)::json->>'service_role_
 ### Zalecenia dla produkcji:
 
 1. **Użyj Database Webhooks** (najbezpieczniejsze)
-   ```
-   Supabase Dashboard > Database > Webhooks
-   → Trigger na INSERT do notifications
-   → Wywołuje edge function bezpośrednio
-   ```
+   - Uruchom `supabase/migrations/20251210_enable_notifications_webhook.sql`
+   - Ustaw w `app.settings` zarówno `service_role_key`, jak i `supabase_url`
+   - Monitoruj Dashboard > Database > Webhooks > process-pending-notifications
 
-2. **Lub ustaw GUC w bazie** (lepsze niż hardcode)
+2. **Lub ustaw GUC w bazie** (fallback dla środowisk DEV)
    ```sql
-   ALTER DATABASE postgres 
-   SET app.settings = '{"service_role_key": "twoj_klucz"}';
+   ALTER DATABASE postgres
+   SET app.settings = '{"service_role_key": "twoj_klucz", "supabase_url": "https://projekt.supabase.co"}';
    ```
 
 3. **Lub JWT Signing** (ograniczony scope)
@@ -216,8 +214,8 @@ Plik migracji został zoptymalizowany według **production-ready best practices*
 - ✅ **Dokumentacja rozszerzona** - ostrzeżenia o bezpieczeństwie i stabilności
 - ✅ **Alternatywy opisane** - Database Webhooks, Cron, JWT signing
 
-**Obecna konfiguracja jest gotowa do użycia w development/staging.**  
-**Dla produkcji rozważ Database Webhooks lub dodatkowy Cron backup.**
+**Obecna konfiguracja jest gotowa do użycia w development/staging.**
+**Dla produkcji uruchom Database Webhook (20251210_enable_notifications_webhook.sql) + ewentualny Cron backup.**
 
 ---
 

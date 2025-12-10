@@ -30,8 +30,11 @@ async function deployMigration() {
     console.log('📄 Wczytywanie migracji...');
     const migrationPath = join(__dirname, 'supabase', 'migrations', '20251210_setup_auto_notifications.sql');
     const migrationSQL = readFileSync(migrationPath, 'utf-8');
-    
-    console.log('✅ Migracja wczytana\n');
+
+    const webhookMigrationPath = join(__dirname, 'supabase', 'migrations', '20251210_enable_notifications_webhook.sql');
+    const webhookSQL = readFileSync(webhookMigrationPath, 'utf-8');
+
+    console.log('✅ Migracje wczytane (trigger + Database Webhook)\n');
 
     // Wykonaj migrację (Supabase nie ma bezpośredniego API do migracji, więc rozbijemy na części)
     console.log('⚙️  Wykonywanie migracji...');
@@ -50,7 +53,9 @@ async function deployMigration() {
     console.log('\n📝 UWAGA: Główna migracja musi być uruchomiona przez Supabase Dashboard lub CLI');
     console.log('   1. Otwórz Supabase Dashboard');
     console.log('   2. Przejdź do SQL Editor');
-    console.log('   3. Wklej zawartość pliku: supabase/migrations/20251210_setup_auto_notifications.sql');
+    console.log('   3. Wklej zawartość odpowiedniego pliku:');
+    console.log('      • DEV/Staging: supabase/migrations/20251210_setup_auto_notifications.sql');
+    console.log('      • Production (Database Webhook): supabase/migrations/20251210_enable_notifications_webhook.sql');
     console.log('   4. Uruchom query\n');
 
     // Sprawdź czy trigger już istnieje
@@ -82,15 +87,21 @@ async function verifyInstallation() {
     }
 
     // Sprawdź czy funkcja istnieje
-    console.log('   Sprawdzanie funkcji...');
+   console.log('   Sprawdzanie funkcji...');
     const { data: functions, error: funcError } = await supabase.rpc('exec_sql', {
-      sql: `SELECT proname FROM pg_proc WHERE proname = 'trigger_process_pending_notifications';`
+      sql: `
+        SELECT proname FROM pg_proc
+        WHERE proname = ANY (ARRAY['notifications_webhook_dispatch', 'trigger_process_pending_notifications']);
+      `
     }).catch(() => ({ error: 'No RPC' }));
 
     if (funcError) {
       console.log('   ⚠️  Nie można sprawdzić funkcji (może wymagać uprawnień)');
+    } else if (functions && functions.length > 0) {
+      const found = functions.map(fn => fn.proname).join(', ');
+      console.log(`   ✅ Funkcje znalezione: ${found}`);
     } else {
-      console.log('   ✅ Funkcja trigger_process_pending_notifications istnieje');
+      console.log('   ⚠️  Brak funkcji triggera/webhooka - uruchom migrację ponownie');
     }
 
     // Sprawdź czy tabela notifications istnieje
@@ -119,12 +130,12 @@ async function verifyInstallation() {
 }
 
 async function configureServiceKey() {
-  console.log('\n🔐 Konfiguracja Service Role Key (opcjonalne)...');
-  console.log('   Możesz ustawić Service Role Key w GUC:');
+  console.log('\n🔐 Konfiguracja GUC dla Database Webhook...');
+  console.log('   Zapisz w bazie zarówno Service Role Key jak i URL projektu:');
   console.log('   ```sql');
-  console.log('   ALTER DATABASE postgres SET app.settings = \'{"service_role_key": "' + supabaseServiceKey.substring(0, 20) + '..."}\';');
+  console.log('   ALTER DATABASE postgres SET app.settings = \'{"service_role_key": "' + supabaseServiceKey.substring(0, 20) + '...", "supabase_url": "' + supabaseUrl + '"}\';');
   console.log('   ```');
-  console.log('   ⚠️  UWAGA: To wymaga restartu connection pool\n');
+  console.log('   ⚠️  UWAGA: Po zmianie wykonaj restart connection pool (Database > Restart).\n');
 }
 
 // Główna funkcja

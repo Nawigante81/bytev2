@@ -150,10 +150,10 @@ async function checkNotificationStatus(notificationId, maxAttempts = 5) {
 
   console.log('   ⏱️  Timeout - powiadomienie wciąż ma status pending');
   console.log('   💡 Możliwe przyczyny:');
-  console.log('      1. Trigger nie został utworzony (sprawdź Test 1)');
+  console.log('      1. Trigger/Database Webhook nie jest aktywny (sprawdź Test 1 oraz Dashboard > Database > Webhooks)');
   console.log('      2. Edge function nie działa (sprawdź deployment)');
-  console.log('      3. Błąd w net.http_post (sprawdź Postgres logs)');
-  console.log('      4. Service Role Key nie jest skonfigurowany\n');
+  console.log('      3. Webhook nie może wywołać process-pending-notifications (sprawdź Postgres Logs / supabase_functions.http_request)');
+  console.log('      4. Service Role Key lub app.settings.supabase_url nie są skonfigurowane\n');
   return false;
 }
 
@@ -163,16 +163,20 @@ async function checkEdgeFunctionLogs() {
   
   console.log('   📊 Gdzie sprawdzić logi:');
   console.log('');
-  console.log('   1. Postgres Logs (trigger):');
+  console.log('   1. Postgres Logs (trigger / supabase_functions.http_request):');
   console.log('      Supabase Dashboard > Logs > Postgres Logs');
-  console.log('      Szukaj: "Triggered process-pending-notifications"');
+  console.log('      Szukaj: "supabase_functions.http_request" lub ostrzeżeń z notifications_webhook_dispatch');
   console.log('');
-  console.log('   2. Edge Functions Logs:');
+  console.log('   2. Database Webhooks Logs:');
+  console.log('      Supabase Dashboard > Database > Webhooks > process-pending-notifications');
+  console.log('      Sprawdź statusy wywołań oraz Payload');
+  console.log('');
+  console.log('   3. Edge Functions Logs:');
   console.log('      Supabase Dashboard > Edge Functions > process-pending-notifications > Logs');
   console.log('      Sprawdź czy funkcja została wywołana');
   console.log('');
-  console.log('   3. Błędy HTTP:');
-  console.log('      Szukaj w Postgres Logs: "Edge call failed"');
+  console.log('   4. Błędy HTTP:');
+  console.log('      Supabase Dashboard > Logs > Postgres Logs (filtr severity=error)');
   console.log('');
 }
 

@@ -281,10 +281,16 @@ echo ""
 `;
   
   // Zapisz skrypt do pliku
-  const fs = require('fs');
-  fs.writeFileSync('monitor-powiadomien.sh', monitoringScript);
-  console.log('✅ Utworzono skrypt: monitor-powiadomien.sh');
-  console.log('   Uruchamiaj: bash monitor-powiadomien.sh');
+  try {
+    const fs = await import('fs');
+    fs.writeFileSync('monitor-powiadomien.sh', monitoringScript);
+    console.log('✅ Utworzono skrypt: monitor-powiadomien.sh');
+    console.log('   Uruchamiaj: bash monitor-powiadomien.sh');
+  } catch (error) {
+    console.log('⚠️  Nie można zapisać skryptu:', error.message);
+    console.log('📋 Skrypt do ręcznego utworzenia:');
+    console.log(monitoringScript);
+  }
   console.log('');
 }
 
