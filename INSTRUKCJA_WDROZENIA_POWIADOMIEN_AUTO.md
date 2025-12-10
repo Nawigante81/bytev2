@@ -167,10 +167,10 @@ Powinien być widoczny: `auto_process_notifications`
 
 **Możliwe przyczyny:**
 
-1. **Rozszerzenie http nie jest włączone**
-   ```sql
-   CREATE EXTENSION IF NOT EXISTS http WITH SCHEMA extensions;
-   ```
+1. **Rozszerzenie pg_net nie jest włączone**
+    ```sql
+    CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA extensions;
+    ```
 
 2. **Service Role Key nie jest skonfigurowany**
    - Sprawdź GUC settings
@@ -181,8 +181,8 @@ Powinien być widoczny: `auto_process_notifications`
    supabase functions deploy process-pending-notifications
    ```
 
-4. **Błąd w extensions.http_post**
-   - Sprawdź Postgres Logs
+4. **Błąd w net.http_post**
+    - Sprawdź Postgres Logs
    - Może być timeout lub błąd sieci
 
 ### Problem: Powiadomienia mają status 'pending'

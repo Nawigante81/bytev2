@@ -23,7 +23,7 @@ BEGIN
     supabase_url := 'https://wllxicmacmfzmqdnovhp.supabase.co';
   END IF;
   
-  SELECT extensions.http_post(...) INTO request_id;
+  SELECT net.http_post(...) INTO request_id;
 ```
 
 #### Po:
@@ -32,7 +32,7 @@ DECLARE
   supabase_url text := 'https://wllxicmacmfzmqdnovhp.supabase.co';
   service_key text := current_setting('app.settings', true)::json->>'service_role_key';
 BEGIN
-  PERFORM extensions.http_post(...);
+  PERFORM net.http_post(...);
 ```
 
 **Korzyści:**
@@ -131,7 +131,7 @@ Dodano szczegółowe uwagi dotyczące:
   - Full access do całego projektu
   - Alternatywy: JWT signing, IP-based auth, Database Webhooks
 
-- ⚠️ **Niestabilność extensions.http**
+- ⚠️ **Niestabilność net.http_post**
   - "Use at your own risk" - może tracić requesty
   - Rekomendowane: Database Webhooks lub Functions Scheduler
   - Trigger daje real-time, ale może potrzebować fallback

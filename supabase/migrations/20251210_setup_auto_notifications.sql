@@ -11,8 +11,8 @@
 -- W production rozważ: Database Webhooks, IP-based auth lub JWT signing.
 -- ============================================================================
 
--- Krok 1: Włącz rozszerzenie http (jeśli jeszcze nie jest włączone)
-CREATE EXTENSION IF NOT EXISTS http WITH SCHEMA extensions;
+-- Krok 1: Włącz rozszerzenie pg_net (jeśli jeszcze nie jest włączone)
+CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA extensions;
 
 -- Krok 2: Funkcja do wywoływania edge function (optymalizowana wersja)
 CREATE OR REPLACE FUNCTION public.trigger_process_pending_notifications()
@@ -29,13 +29,13 @@ BEGIN
   -- UWAGA: extensions.http może być niestabilny w produkcji
   -- Rozważ Database Webhooks lub Supabase Functions Scheduler jako alternatywę
   BEGIN
-    PERFORM extensions.http_post(
+    PERFORM net.http_post(
       url := supabase_url || '/functions/v1/process-pending-notifications',
       headers := jsonb_build_object(
         'Authorization', 'Bearer ' || COALESCE(service_key, ''),
         'Content-Type', 'application/json'
       ),
-      body := jsonb_build_object('notification_id', NEW.notification_id),
+      body := jsonb_build_object('notification_id', NEW.notification_id)::text,
       timeout_milliseconds := 2000
     );
 
@@ -161,7 +161,7 @@ WHERE proname = 'trigger_process_pending_notifications';
 --    - Możesz ustawić GUC: ALTER DATABASE postgres SET app.settings = '{"service_role_key": "..."}';
 --    - Jeśli używasz GUC, restart connection pool może być wymagany
 
--- 3. extensions.http_post MOŻE BYĆ NIESTABILNY:
+-- 3. net.http_post MOŻE BYĆ NIESTABILNY:
 --    - To "use at your own risk" - niektóre requesty mogą zaginąć
 --    - W production: Database Webhooks lub Supabase Functions Scheduler
 --    - Trigger daje real-time, ale może wymagać fallback (cron)
@@ -169,7 +169,7 @@ WHERE proname = 'trigger_process_pending_notifications';
 -- 4. Timeout na 2000ms:
 --    - Wystarczająco krótki (trigger nie czeka)
 --    - Jeśli edge function spi → warning, transakcja przechodzi
---    - request_id z http_post to fake integer (nie realny request ID)
+--    - request_id z net.http_post to fake integer (nie realny request ID)
 
 -- 5. Monitoring:
 --    - Supabase Dashboard > Logs > Postgres Logs (triggery, errory)

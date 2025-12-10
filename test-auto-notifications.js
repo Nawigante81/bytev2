@@ -152,7 +152,7 @@ async function checkNotificationStatus(notificationId, maxAttempts = 5) {
   console.log('   💡 Możliwe przyczyny:');
   console.log('      1. Trigger nie został utworzony (sprawdź Test 1)');
   console.log('      2. Edge function nie działa (sprawdź deployment)');
-  console.log('      3. Błąd w extensions.http_post (sprawdź Postgres logs)');
+  console.log('      3. Błąd w net.http_post (sprawdź Postgres logs)');
   console.log('      4. Service Role Key nie jest skonfigurowany\n');
   return false;
 }

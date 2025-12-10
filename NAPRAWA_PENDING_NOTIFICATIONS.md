@@ -60,7 +60,7 @@ DECLARE
   service_key text := current_setting('app.settings', true)::json->>'service_role_key';
 BEGIN
   BEGIN
-    PERFORM extensions.http_post(
+    PERFORM net.http_post(
       url := supabase_url || '/functions/v1/process-pending-notifications',
       headers := jsonb_build_object(
         'Authorization', 'Bearer ' || COALESCE(service_key, ''),
