@@ -393,22 +393,250 @@ const TicketDetails = () => {
 
   const exportToPDF = () => {
     const doc = new jsPDF();
-    doc.setFont('Helvetica', 'bold');
-    doc.text('ByteClinic - Zgłoszenie serwisowe', 14, 22);
-    doc.setFontSize(12);
-    doc.setFont('Helvetica', 'normal');
-    doc.text(`ID Zgłoszenia: ${displayId || ticket.id}`, 14, 32);
-    doc.text(`Status: ${ticket.status}`, 14, 42);
-    doc.text(`Data utworzenia: ${new Date(ticket.created_at).toLocaleString('pl-PL')}`, 14, 52);
-    doc.text(`Tytuł: ${ticket.device || 'Brak'}`, 14, 62);
-    
-    doc.setFont('Helvetica', 'bold');
-    doc.text('Opis problemu:', 14, 72);
-    doc.setFont('Helvetica', 'normal');
-    const splitContent = doc.splitTextToSize(ticket.message || 'Brak opisu.', 180);
-    doc.text(splitContent, 14, 82);
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 20;
+    const contentWidth = pageWidth - (margin * 2);
+    let yPos = margin;
 
-    doc.save(`ticket_${(displayId || ticket.id).toString().substring(0, 8)}.pdf`);
+    // Helper function to safely render Polish text
+    const safeText = (text) => {
+      return text
+        .replace(/ą/g, 'a').replace(/Ą/g, 'A')
+        .replace(/ć/g, 'c').replace(/Ć/g, 'C')
+        .replace(/ę/g, 'e').replace(/Ę/g, 'E')
+        .replace(/ł/g, 'l').replace(/Ł/g, 'L')
+        .replace(/ń/g, 'n').replace(/Ń/g, 'N')
+        .replace(/ó/g, 'o').replace(/Ó/g, 'O')
+        .replace(/ś/g, 's').replace(/Ś/g, 'S')
+        .replace(/ź/g, 'z').replace(/Ź/g, 'Z')
+        .replace(/ż/g, 'z').replace(/Ż/g, 'Z');
+    };
+
+    // Helper function to add page footer
+    const addFooter = (pageNum) => {
+      doc.setFontSize(8);
+      doc.setTextColor(128, 128, 128);
+      doc.text(
+        safeText(`ByteClinic © ${new Date().getFullYear()} | Strona ${pageNum}`),
+        pageWidth / 2,
+        pageHeight - 10,
+        { align: 'center' }
+      );
+      doc.text(
+        safeText(`Wygenerowano: ${new Date().toLocaleString('pl-PL')}`),
+        pageWidth - margin,
+        pageHeight - 10,
+        { align: 'right' }
+      );
+    };
+
+    // Helper function to check if we need a new page
+    const checkNewPage = (requiredSpace) => {
+      if (yPos + requiredSpace > pageHeight - 30) {
+        addFooter(doc.internal.getNumberOfPages());
+        doc.addPage();
+        yPos = margin;
+        return true;
+      }
+      return false;
+    };
+
+    // Header with logo placeholder and title
+    doc.setFillColor(37, 99, 235); // Primary blue color
+    doc.rect(0, 0, pageWidth, 45, 'F');
+    
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(24);
+    doc.setFont('Helvetica', 'bold');
+    doc.text('ByteClinic', margin, 20);
+    
+    doc.setFontSize(14);
+    doc.setFont('Helvetica', 'normal');
+    doc.text('Zgloszenie Serwisowe', margin, 30);
+    
+    // Reset text color
+    doc.setTextColor(0, 0, 0);
+    yPos = 60;
+
+    // Ticket ID and Status Box
+    doc.setFillColor(245, 245, 245);
+    doc.roundedRect(margin, yPos, contentWidth, 35, 3, 3, 'F');
+    
+    doc.setFontSize(12);
+    doc.setFont('Helvetica', 'bold');
+    doc.setTextColor(37, 99, 235);
+    doc.text(safeText(`ID Zgloszenia: ${displayId || ticket.id}`), margin + 5, yPos + 10);
+    
+    // Status badge
+    const statusLabel = getStatusDetails(ticket.status).label;
+    doc.setFontSize(10);
+    doc.setFont('Helvetica', 'bold');
+    
+    // Status color based on status
+    let statusColor = [128, 128, 128];
+    if (ticket.status === 'new_request') statusColor = [59, 130, 246];
+    else if (ticket.status === 'in_repair') statusColor = [249, 115, 22];
+    else if (ticket.status === 'repair_completed' || ticket.status === 'ready_for_pickup') statusColor = [34, 197, 94];
+    
+    doc.setFillColor(...statusColor);
+    doc.roundedRect(margin + 5, yPos + 15, 50, 8, 2, 2, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.text(statusLabel.toUpperCase(), margin + 30, yPos + 20.5, { align: 'center' });
+    
+    doc.setTextColor(0, 0, 0);
+    yPos += 45;
+
+    // Main Information Section
+    checkNewPage(40);
+    doc.setFontSize(14);
+    doc.setFont('Helvetica', 'bold');
+    doc.setTextColor(37, 99, 235);
+    doc.text('Informacje Podstawowe', margin, yPos);
+    
+    doc.setDrawColor(37, 99, 235);
+    doc.setLineWidth(0.5);
+    doc.line(margin, yPos + 2, margin + 60, yPos + 2);
+    yPos += 10;
+
+    doc.setFontSize(10);
+    doc.setFont('Helvetica', 'normal');
+    doc.setTextColor(0, 0, 0);
+    
+    const infoData = [
+      ['Urzadzenie:', deviceLabel],
+      ['Klient:', customerLabel],
+      ['Data utworzenia:', new Date(ticket.created_at).toLocaleString('pl-PL')],
+      ['Status:', statusLabel],
+    ];
+
+    if (estimatedCompletion?.date) {
+      infoData.push(['Szacowane zakonczenie:',
+        `${estimatedCompletion.date.toLocaleDateString('pl-PL')} (${safeText(estimatedCompletion.description)})`
+      ]);
+    } else if (estimatedCompletion?.description) {
+      infoData.push(['Status realizacji:', safeText(estimatedCompletion.description)]);
+    }
+
+    infoData.forEach(([label, value]) => {
+      checkNewPage(8);
+      doc.setFont('Helvetica', 'bold');
+      doc.text(safeText(label), margin, yPos);
+      doc.setFont('Helvetica', 'normal');
+      const valueLines = doc.splitTextToSize(safeText(value), contentWidth - 60);
+      doc.text(valueLines, margin + 60, yPos);
+      yPos += Math.max(8, valueLines.length * 5);
+    });
+
+    yPos += 5;
+
+    // Description Section
+    checkNewPage(30);
+    doc.setFontSize(14);
+    doc.setFont('Helvetica', 'bold');
+    doc.setTextColor(37, 99, 235);
+    doc.text('Opis Problemu', margin, yPos);
+    
+    doc.setDrawColor(37, 99, 235);
+    doc.line(margin, yPos + 2, margin + 45, yPos + 2);
+    yPos += 10;
+
+    doc.setFontSize(10);
+    doc.setFont('Helvetica', 'normal');
+    doc.setTextColor(60, 60, 60);
+    
+    const descriptionText = ticket.message || 'Brak opisu problemu.';
+    const descriptionLines = doc.splitTextToSize(safeText(descriptionText), contentWidth);
+    
+    descriptionLines.forEach(line => {
+      checkNewPage(6);
+      doc.text(line, margin, yPos);
+      yPos += 6;
+    });
+
+    yPos += 10;
+
+    // Timeline Section
+    if (timeline && timeline.length > 0) {
+      checkNewPage(30);
+      doc.setFontSize(14);
+      doc.setFont('Helvetica', 'bold');
+      doc.setTextColor(37, 99, 235);
+      doc.text('Historia Naprawy', margin, yPos);
+      
+      doc.setDrawColor(37, 99, 235);
+      doc.line(margin, yPos + 2, margin + 50, yPos + 2);
+      yPos += 10;
+
+      doc.setFontSize(9);
+      doc.setTextColor(0, 0, 0);
+
+      timeline.forEach((event, index) => {
+        checkNewPage(25);
+        
+        // Event box
+        doc.setFillColor(250, 250, 250);
+        const boxHeight = 20;
+        doc.roundedRect(margin, yPos, contentWidth, boxHeight, 2, 2, 'F');
+        
+        // Event icon/number
+        doc.setFillColor(37, 99, 235);
+        doc.circle(margin + 5, yPos + 10, 3, 'F');
+        
+        // Event details
+        doc.setFont('Helvetica', 'bold');
+        doc.text(safeText(`${index + 1}. ${event.title}`), margin + 12, yPos + 8);
+        
+        doc.setFont('Helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(100, 100, 100);
+        doc.text(new Date(event.created_at).toLocaleString('pl-PL'), margin + 12, yPos + 13);
+        
+        doc.setFontSize(9);
+        doc.setTextColor(0, 0, 0);
+        const eventDesc = doc.splitTextToSize(safeText(event.description), contentWidth - 20);
+        doc.text(eventDesc, margin + 12, yPos + 18);
+        
+        yPos += boxHeight + 5;
+      });
+    }
+
+    yPos += 10;
+
+    // Contact and Warranty Section (side by side if space allows)
+    checkNewPage(50);
+    doc.setFontSize(12);
+    doc.setFont('Helvetica', 'bold');
+    doc.setTextColor(37, 99, 235);
+    doc.text('Kontakt', margin, yPos);
+    doc.text('Gwarancja', pageWidth / 2 + 10, yPos);
+    yPos += 8;
+
+    doc.setFontSize(9);
+    doc.setFont('Helvetica', 'normal');
+    doc.setTextColor(0, 0, 0);
+    
+    // Contact info
+    doc.text('Tel: +48 724 316 523', margin, yPos);
+    doc.text('Email: kontakt@byteclinic.pl', margin, yPos + 5);
+    doc.text('Pon-Pt: 9:00-17:00', margin, yPos + 10);
+    
+    // Warranty info
+    doc.text('Na prace: 3 miesiace', pageWidth / 2 + 10, yPos);
+    doc.text('Na czesci: 12 miesiecy', pageWidth / 2 + 10, yPos + 5);
+    doc.text('Status: Aktywna', pageWidth / 2 + 10, yPos + 10);
+
+    // Add footer to last page
+    addFooter(doc.internal.getNumberOfPages());
+
+    // Save the PDF
+    const fileName = `ByteClinic_Zgloszenie_${(displayId || ticket.id).toString().substring(0, 8)}_${new Date().toISOString().split('T')[0]}.pdf`;
+    doc.save(fileName);
+    
+    toast({
+      title: 'PDF wygenerowany pomyslnie!',
+      description: `Zapisano jako: ${fileName}`
+    });
   };
 
   const handleStatusChange = async (newStatus) => {
@@ -523,9 +751,11 @@ const TicketDetails = () => {
                   <Button onClick={exportToPDF} variant="secondary">
                     <FileDown className="mr-2 h-4 w-4" /> Eksportuj do PDF
                   </Button>
-                  <Button variant="secondary">
-                    <Bell className="mr-2 h-4 w-4" /> Powiadom o zmianach
-                  </Button>
+                  {profile?.role === 'admin' && (
+                    <Button variant="secondary">
+                      <Bell className="mr-2 h-4 w-4" /> Powiadom o zmianach
+                    </Button>
+                  )}
                   {profile?.role === 'admin' && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>

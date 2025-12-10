@@ -18,6 +18,7 @@ import OrderModal from '@/components/OrderModal';
 import { cn } from '@/lib/utils';
 import NewsDashboard from '@/components/NewsDashboard';
 import ReviewsCarousel from '@/components/ReviewsCarousel';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
 
 const usePrefersReducedMotion = () => {
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
@@ -33,6 +34,7 @@ const usePrefersReducedMotion = () => {
 
 const Home = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isDiagnosisModalOpen, setIsDiagnosisModalOpen] = useState(false);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [selectedService, setSelectedService] = useState(null);
@@ -216,7 +218,7 @@ const Home = () => {
               </motion.div>
             </div>
                         
-            <motion.div 
+            <motion.div
               className="mt-6 md:mt-8 flex flex-col sm:flex-row justify-center items-center text-center gap-3 sm:gap-4"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -228,7 +230,7 @@ const Home = () => {
               <Button asChild size="lg" variant="secondary" className="w-full sm:w-56">
                 <Link to="/sledzenie">🔍 Śledź naprawę</Link>
               </Button>
-              <Button size="lg" variant="outline" className="w-full sm:w-56" onClick={() => setIsDiagnosisModalOpen(true)}>
+              <Button size="lg" variant="outline" className="w-full sm:w-56" onClick={() => user ? setIsDiagnosisModalOpen(true) : window.location.href = '/auth'}>
                 💻 Diagnoza online
               </Button>
             </motion.div>
@@ -480,7 +482,7 @@ const Home = () => {
               <Button asChild size="lg" className="w-full">
                 <Link to="/kontakt"><Wrench className="mr-2 h-5 w-5" /> Kontakt z serwisem</Link>
               </Button>
-              <Button size="lg" variant="secondary" className="w-full" onClick={() => setIsDiagnosisModalOpen(true)}>
+              <Button size="lg" variant="secondary" className="w-full" onClick={() => user ? setIsDiagnosisModalOpen(true) : window.location.href = '/auth'}>
                 Diagnoza online
               </Button>
             </motion.div>

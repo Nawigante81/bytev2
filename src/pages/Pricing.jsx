@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, memo } from 'react';
 import PageTransition from '@/components/PageTransition';
 import MetaTags from '@/components/MetaTags';
 import SectionWrapper from '@/components/SectionWrapper';
@@ -208,24 +208,27 @@ const Pricing = () => {
     },
   ];
 
-  const categories = ['Wszystkie', 'Diagnostyka', 'Serwis', 'Montaż', 'Dane', 'Sieć', 'Serwery', 'IoT', 'Bezpieczeństwo', 'Dodatkowe'];
+  const categories = useMemo(() =>
+    ['Wszystkie', 'Diagnostyka', 'Serwis', 'Montaż', 'Dane', 'Sieć', 'Serwery', 'IoT', 'Bezpieczeństwo', 'Dodatkowe'],
+    []
+  );
 
-  const filteredRows = selectedCategory === 'Wszystkie' 
-    ? priceRows 
-    : priceRows.filter(row => {
-        const categoryMap = {
-          'Diagnostyka': 'Diagnostyka i analiza',
-          'Serwis': 'Serwis komputerowy',
-          'Montaż': 'Montaż i modernizacja',
-          'Dane': 'Odzyskiwanie danych',
-          'Sieć': 'Usługi sieciowe',
-          'Serwery': 'Serwery i wirtualizacja',
-          'IoT': 'IoT i automatyka',
-          'Bezpieczeństwo': 'Bezpieczeństwo',
-          'Dodatkowe': 'Usługi dodatkowe'
-        };
-        return row.section === categoryMap[selectedCategory];
-      });
+  const categoryMap = useMemo(() => ({
+    'Diagnostyka': 'Diagnostyka i analiza',
+    'Serwis': 'Serwis komputerowy',
+    'Montaż': 'Montaż i modernizacja',
+    'Dane': 'Odzyskiwanie danych',
+    'Sieć': 'Usługi sieciowe',
+    'Serwery': 'Serwery i wirtualizacja',
+    'IoT': 'IoT i automatyka',
+    'Bezpieczeństwo': 'Bezpieczeństwo',
+    'Dodatkowe': 'Usługi dodatkowe'
+  }), []);
+
+  const filteredRows = useMemo(() => {
+    if (selectedCategory === 'Wszystkie') return priceRows;
+    return priceRows.filter(row => row.section === categoryMap[selectedCategory]);
+  }, [selectedCategory, categoryMap]);
 
   const handleQuickQuote = () => {
     setContactService('Wycena indywidualna');
@@ -323,12 +326,12 @@ const Pricing = () => {
       <SectionWrapper className="pb-8">
         <div className="space-y-8">
           {filteredRows.map((section, sectionIndex) => (
-            <motion.section 
-              key={section.section} 
-              initial={{ opacity: 0, y: 20 }} 
-              whileInView={{ opacity: 1, y: 0 }} 
-              viewport={{ once: true }} 
-              transition={{ duration: 0.5, delay: sectionIndex * 0.1 }}
+            <motion.section
+              key={section.section}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-50px" }}
+              transition={{ duration: 0.4, delay: Math.min(sectionIndex * 0.08, 0.3) }}
             >
               <Card className={`border ${section.color}`}>
                 <CardHeader>
@@ -340,12 +343,8 @@ const Pricing = () => {
                 <CardContent>
                   <div className="grid gap-4">
                     {section.items.map((item, itemIndex) => (
-                      <motion.div 
-                        key={itemIndex}
-                        initial={{ opacity: 0, x: -20 }}
-                        whileInView={{ opacity: 1, x: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 0.3, delay: itemIndex * 0.05 }}
+                      <div
+                        key={`${section.section}-${itemIndex}`}
                         className="relative"
                       >
                         <div className={`p-4 rounded-lg border bg-card/50 ${item.popular ? 'border-primary/30 bg-primary/5' : 'border-border/60'}`}>
@@ -406,7 +405,7 @@ const Pricing = () => {
                             </div>
                           </div>
                         </div>
-                      </motion.div>
+                      </div>
                     ))}
                   </div>
                 </CardContent>

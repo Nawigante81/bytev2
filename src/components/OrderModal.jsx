@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 
-const OrderModal = ({ isOpen, setIsOpen, service }) => {
+const OrderModal = memo(({ isOpen, setIsOpen, service }) => {
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -49,12 +49,12 @@ const OrderModal = ({ isOpen, setIsOpen, service }) => {
     };
   }, [isOpen, setIsOpen]);
 
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setFormData({
       name: '', email: '', phone: '', message: '', consent: false
     });
     setErrors({});
-  };
+  }, []);
 
   const validateForm = () => {
     const newErrors = {};
@@ -67,12 +67,12 @@ const OrderModal = ({ isOpen, setIsOpen, service }) => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleChange = (e) => {
+  const handleChange = useCallback((e) => {
     const { name, value, type, checked } = e.target;
     setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
-  };
+  }, []);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
     if (!validateForm() || isLoading) return;
 
@@ -129,7 +129,7 @@ const OrderModal = ({ isOpen, setIsOpen, service }) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [service, formData, user, isLoading, toast, resetForm, setIsOpen]);
 
   if (!service) return null;
 
@@ -213,6 +213,8 @@ const OrderModal = ({ isOpen, setIsOpen, service }) => {
       )}
     </AnimatePresence>
   );
-};
+});
+
+OrderModal.displayName = 'OrderModal';
 
 export default OrderModal;

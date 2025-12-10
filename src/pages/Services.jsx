@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo, memo } from 'react';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
 import PageTransition from '@/components/PageTransition';
@@ -18,13 +18,13 @@ import {
 } from 'lucide-react';
 import OrderModal from '@/components/OrderModal';
 
-const ServiceCard = ({ service, index, onOrderClick }) => {
+const ServiceCard = memo(({ service, index, onOrderClick }) => {
   return (
     <motion.div
       initial={{ opacity: 0, y: 50 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.5, delay: index * 0.1 }}
+      viewport={{ once: true, margin: "-50px" }}
+      transition={{ duration: 0.4, delay: Math.min(index * 0.08, 0.3) }}
     >
       <Card className="bg-card/80 border-primary/20 backdrop-blur-sm h-full flex flex-col hover:border-primary hover:-translate-y-1 transition-all duration-300 overflow-hidden">
         <CardHeader>
@@ -65,7 +65,9 @@ const ServiceCard = ({ service, index, onOrderClick }) => {
       </Card>
     </motion.div>
   );
-};
+});
+
+ServiceCard.displayName = 'ServiceCard';
 
 const Services = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -295,26 +297,27 @@ const Services = () => {
     }
   ];
 
-  const serviceCategories = [
+  const serviceCategories = useMemo(() => [
     "Wszystkie",
-    "Diagnostyka", 
-    "Konserwacja", 
-    "System", 
-    "Dane", 
-    "Optymalizacja", 
-    "Sieci", 
-    "Serwery", 
-    "IoT", 
-    "Mobilne", 
-    "Bezpieczeństwo", 
+    "Diagnostyka",
+    "Konserwacja",
+    "System",
+    "Dane",
+    "Optymalizacja",
+    "Sieci",
+    "Serwery",
+    "IoT",
+    "Mobilne",
+    "Bezpieczeństwo",
     "Hardware"
-  ];
+  ], []);
 
   const [selectedCategory, setSelectedCategory] = useState("Wszystkie");
 
-  const filteredServices = selectedCategory === "Wszystkie" 
-    ? services 
-    : services.filter(service => service.category === selectedCategory);
+  const filteredServices = useMemo(() => {
+    if (selectedCategory === "Wszystkie") return services;
+    return services.filter(service => service.category === selectedCategory);
+  }, [selectedCategory, services]);
 
   const faqItems = [
     { q: "Ile trwa diagnoza?", a: "Standardowa diagnoza trwa 24-48h, diagnoza online 1-2h. W pilnych przypadkach możliwa express w ciągu kilku godzin." },
@@ -440,8 +443,8 @@ const Services = () => {
         </div>
       </SectionWrapper>
       
-      {selectedService && (
-        <OrderModal 
+      {isModalOpen && selectedService && (
+        <OrderModal
           isOpen={isModalOpen}
           setIsOpen={setIsModalOpen}
           service={selectedService}

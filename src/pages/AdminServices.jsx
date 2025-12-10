@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { supabase } from '@/lib/supabaseClient';
 import PageTransition from '@/components/PageTransition';
@@ -37,20 +37,34 @@ const AdminServices = () => {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const refreshTimeoutRef = useRef(null);
+  const cacheRef = useRef({ data: null, timestamp: 0 });
+  const CACHE_DURATION = 30000; // 30 sekund
 
   const [form, setForm] = useState({ slug: '', title: '', description: '', price_cents: 0, active: true });
 
-  const fetchServices = useCallback(async () => {
+  const fetchServices = useCallback(async (forceRefresh = false) => {
+    // Sprawdź cache
+    const now = Date.now();
+    if (!forceRefresh && cacheRef.current.data && (now - cacheRef.current.timestamp) < CACHE_DURATION) {
+      setServices(cacheRef.current.data);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     const { data, error } = await supabase
       .from('service_catalog')
-      .select('id, slug, title, description, price_cents, active, updated_at')
+      .select('id, slug, title, price_cents, active, updated_at')
       .order('updated_at', { ascending: false });
     if (error) {
       toast({ variant: 'destructive', title: 'Błąd pobierania usług', description: error.message });
       setServices([]);
     } else {
-      setServices(data || []);
+      const serviceData = data || [];
+      setServices(serviceData);
+      // Zapisz do cache
+      cacheRef.current = { data: serviceData, timestamp: now };
     }
     setLoading(false);
   }, [toast]);
@@ -98,7 +112,7 @@ const AdminServices = () => {
     } else {
       toast({ title: 'Dodano usługę' });
       setForm({ slug: '', title: '', description: '', price_cents: 0, active: true });
-      fetchServices();
+      fetchServices(true); // Wymuś odświeżenie
     }
   };
 
@@ -110,7 +124,7 @@ const AdminServices = () => {
     if (error) {
       toast({ variant: 'destructive', title: 'Błąd zmiany statusu', description: error.message });
     } else {
-      fetchServices();
+      fetchServices(true); // Wymuś odświeżenie
     }
   };
 
@@ -140,7 +154,7 @@ const AdminServices = () => {
       } else {
         toast({ title: 'Zapisano zmiany' });
         setOpen(false);
-        fetchServices();
+        fetchServices(true); // Wymuś odświeżenie
       }
     };
 
@@ -150,7 +164,7 @@ const AdminServices = () => {
         toast({ variant: 'destructive', title: 'Błąd usuwania', description: error.message });
       } else {
         toast({ title: 'Usunięto usługę' });
-        fetchServices();
+        fetchServices(true); // Wymuś odświeżenie
       }
     };
 
@@ -251,7 +265,18 @@ const AdminServices = () => {
               <CardTitle>Lista usług ({services.length})</CardTitle>
               <CardDescription>Aktywne usługi są widoczne publicznie.</CardDescription>
             </div>
-            <Button variant="outline" onClick={() => { setRefreshing(true); fetchServices().finally(() => setRefreshing(false)); }}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (refreshTimeoutRef.current) return;
+                setRefreshing(true);
+                refreshTimeoutRef.current = setTimeout(() => {
+                  refreshTimeoutRef.current = null;
+                }, 1000);
+                fetchServices(true).finally(() => setRefreshing(false));
+              }}
+              disabled={refreshing}
+            >
               {refreshing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />} Odśwież
             </Button>
           </div>
