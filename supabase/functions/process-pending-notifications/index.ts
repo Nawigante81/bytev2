@@ -3,7 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
+const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
 const MAIL_FROM = Deno.env.get('MAIL_FROM') || 'onboarding@resend.dev';
 
 const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
@@ -76,6 +76,10 @@ Deno.serve(async (req: Request) => {
         console.log(`📤 Sending notification ${notification.notification_id} to ${notification.recipient_email}`);
 
         // Wyślij email przez Resend
+        if (!RESEND_API_KEY) {
+          throw new Error('RESEND_API_KEY is not configured');
+        }
+
         const resendResponse = await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: {

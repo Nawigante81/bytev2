@@ -129,38 +129,51 @@ class EmailQueue {
   }
 
   async sendEmailInternal(job) {
-    // Implementacja wysyłania przez Supabase Edge Function
-    const functionName = this.getFunctionNameForTemplate(job.template);
-    
-    const response = await fetch(`${EMAIL_CONFIG.supabase.url}/functions/v1/${functionName}`, {
+    // Implementacja wysyłania przez nowy system powiadomień
+    // Zamiast edge functions, używamy bezpośrednio process-pending-notifications
+
+    // Dodaj powiadomienie do tabeli notifications
+    const notificationData = {
+      notification_id: `email_${crypto.randomUUID()}`,
+      type: job.template,
+      recipient_email: job.to,
+      recipient_name: job.to.split('@')[0],
+      subject: job.subject,
+      html_content: job.html,
+      text_content: job.text,
+      status: 'pending',
+      retry_count: 0,
+      max_retries: 3,
+      data: job.data || {},
+      metadata: job.metadata || {}
+    };
+
+    // Wywołaj funkcję do dodania powiadomienia
+    const response = await fetch(`${EMAIL_CONFIG.supabase.url}/rest/v1/notifications`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${EMAIL_CONFIG.supabase.anonKey}`,
         'Content-Type': 'application/json',
+        'apikey': EMAIL_CONFIG.supabase.anonKey,
+        'Prefer': 'return=representation'
       },
-      body: JSON.stringify({
-        to: job.to,
-        subject: job.subject,
-        html: job.html,
-        text: job.text,
-        data: job.data,
-        metadata: job.metadata
-      })
+      body: JSON.stringify(notificationData)
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      return { 
-        success: false, 
-        error: `Supabase Function error: ${response.statusText} - ${errorText}` 
+      return {
+        success: false,
+        error: `Failed to add notification: ${response.statusText} - ${errorText}`
       };
     }
 
     const result = await response.json();
     return {
       success: true,
-      provider: 'supabase',
-      ...result
+      provider: 'notification_system',
+      notification_id: result.notification_id,
+      message: 'Notification added to processing queue'
     };
   }
 
@@ -1055,42 +1068,52 @@ class EmailService {
 
 
   async sendWithSupabase(to, emailContent, template, data) {
-    const functionName = this.getFunctionNameForTemplate(template);
-    
-    const response = await fetch(`${this.config.supabase.url}/functions/v1/${functionName}`, {
+    // Nowa implementacja używa systemu powiadomień zamiast edge functions
+    const notificationData = {
+      notification_id: `email_${crypto.randomUUID()}`,
+      type: template,
+      recipient_email: to,
+      recipient_name: to.split('@')[0],
+      subject: emailContent.subject,
+      html_content: emailContent.html,
+      text_content: emailContent.text,
+      status: 'pending',
+      retry_count: 0,
+      max_retries: 3,
+      data: data || {},
+      metadata: {
+        template,
+        timestamp: Date.now(),
+        clientInfo: {
+          userAgent: navigator.userAgent,
+          language: navigator.language,
+          platform: navigator.platform
+        }
+      }
+    };
+
+    const response = await fetch(`${this.config.supabase.url}/rest/v1/notifications`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${this.config.supabase.anonKey}`,
         'Content-Type': 'application/json',
+        'apikey': this.config.supabase.anonKey,
+        'Prefer': 'return=representation'
       },
-      body: JSON.stringify({
-        to,
-        subject: emailContent.subject,
-        html: emailContent.html,
-        text: emailContent.text,
-        data: data,
-        metadata: {
-          template,
-          timestamp: Date.now(),
-          clientInfo: {
-            userAgent: navigator.userAgent,
-            language: navigator.language,
-            platform: navigator.platform
-          }
-        }
-      })
+      body: JSON.stringify(notificationData)
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Supabase Function error: ${response.statusText} - ${errorText}`);
+      throw new Error(`Failed to add notification: ${response.statusText} - ${errorText}`);
     }
 
     const result = await response.json();
     return {
       success: true,
-      provider: 'supabase',
-      ...result
+      provider: 'notification_system',
+      notification_id: result.notification_id,
+      message: 'Notification added to processing queue'
     };
   }
 

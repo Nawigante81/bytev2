@@ -23,7 +23,7 @@ SET search_path = public
 AS $$
 DECLARE
   supabase_url text := 'https://wllxicmacmfzmqdnovhp.supabase.co';
-  service_key text := current_setting('app.settings', true)::json->>'service_role_key';
+  service_key text := COALESCE(current_setting('app.settings', true)::json->>'service_role_key', '');
 BEGIN
   -- Wywołaj edge function asynchronicznie
   -- UWAGA: extensions.http może być niestabilny w produkcji
