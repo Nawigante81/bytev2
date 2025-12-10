@@ -437,34 +437,34 @@ RETURNS TABLE (
 ) AS $$
 BEGIN
     RETURN QUERY
-    SELECT 
+    SELECT
         COUNT(*) as total_requests,
         (
-            SELECT jsonb_object_agg(type, count)
+            SELECT jsonb_object_agg(req_type, count)
             FROM (
-                SELECT type, COUNT(*) as count
+                SELECT type as req_type, COUNT(*) as count
                 FROM requests
                 GROUP BY type
             ) t
         ) as requests_by_type,
         (
-            SELECT jsonb_object_agg(status, count)
+            SELECT jsonb_object_agg(req_status, count)
             FROM (
-                SELECT status, COUNT(*) as count
+                SELECT status as req_status, COUNT(*) as count
                 FROM requests
                 GROUP BY status
-            ) t
+            ) s
         ) as requests_by_status,
         (
-            SELECT jsonb_object_agg(priority, count)
+            SELECT jsonb_object_agg(req_priority, count)
             FROM (
-                SELECT priority, COUNT(*) as count
+                SELECT priority as req_priority, COUNT(*) as count
                 FROM requests
                 GROUP BY priority
-            ) t
+            ) p
         ) as requests_by_priority,
-        AVG(updated_at - created_at) as avg_response_time
-    FROM requests;
+        AVG(r.updated_at - r.created_at) as avg_response_time
+    FROM requests r;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 

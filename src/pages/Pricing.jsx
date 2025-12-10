@@ -75,6 +75,7 @@ const Pricing = () => {
       });
       if (dbError) throw dbError;
 
+      // Wyślij powiadomienie przez notify-system
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-system`, {
         method: 'POST',
         headers: {
@@ -83,17 +84,24 @@ const Pricing = () => {
         },
         body: JSON.stringify({
           template: 'repair_request',
+          recipient: contactEmail,
+          sendAdminCopy: true, // ⚠️ KLUCZOWE - administrator dostanie kopię
           data: {
+            id: quoteId,
+            requestId: quoteId,
             name: contactName,
             email: contactEmail,
             phone: 'Nie podano',
             device: contactService || 'Wycena indywidualna',
             message: contactMsg || 'Zapytanie o wycenę z cennika',
-            id: quoteId,
           },
         }),
       });
-      if (!response.ok) throw new Error('Błąd wysyłania zapytania');
+      
+      if (!response.ok) {
+        console.error('Błąd wysyłania powiadomienia:', await response.text());
+        // Nie przerywaj - zapytanie jest już w bazie
+      }
 
       toast({ title: "✅ Zapytanie wysłane", description: "Dziękujemy! Skontaktujemy się z Tobą w ciągu 24h." });
       setContactName(''); setContactEmail(''); setContactMsg(''); setContactService(''); setContactOpen(false);

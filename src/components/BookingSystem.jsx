@@ -135,10 +135,12 @@ const BookingSystem = () => {
         description: customerInfo.description,
       };
 
+      // Utwórz rezerwację przez edge function (która również tworzy powiadomienie)
       const { data: fnData, error } = await supabase.functions.invoke('create-booking', { body: bookingData });
       if (error) throw new Error(error.message || 'Błąd po stronie funkcji');
       console.log('✅ Rezerwacja utworzona:', fnData);
 
+      // Zapisz również w tabeli requests dla spójności
       const { data: authData } = await supabase.auth.getUser();
       const userId = authData?.user?.id || null;
       const { error: dbError } = await supabase.from('requests').insert({
@@ -159,6 +161,40 @@ const BookingSystem = () => {
         user_agent: navigator.userAgent,
       });
       if (dbError) throw dbError;
+
+      // Wyślij powiadomienie do administratora o nowej rezerwacji
+      try {
+        const notifyResponse = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-system`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            template: 'booking_confirmation',
+            recipient: bookingData.email,
+            sendAdminCopy: true, // ⚠️ KLUCZOWE - administrator dostanie kopię
+            data: {
+              bookingId: bookingData.bookingId,
+              name: bookingData.name,
+              email: bookingData.email,
+              date: bookingData.date,
+              time: bookingData.time,
+              service: bookingData.service,
+              duration: bookingData.duration,
+              price: bookingData.price,
+              device: bookingData.device,
+            }
+          })
+        });
+        
+        if (!notifyResponse.ok) {
+          console.error('Błąd wysyłania powiadomienia:', await notifyResponse.text());
+        }
+      } catch (notifyError) {
+        console.error('Błąd powiadomienia:', notifyError);
+        // Nie przerywaj - rezerwacja jest już utworzona
+      }
 
       completeBooking?.(bookingData);
       setBookingConfirmed(true);

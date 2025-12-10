@@ -147,7 +147,7 @@ const handleSubmit = async (e) => {
     const { data: authData } = await supabase.auth.getUser();
     const userId = authData?.user?.id || null;
 
-    // Zapis do tabeli requests (bez category/subject)
+    // Zapis do tabeli requests
     const { error: dbError } = await supabase.from('requests').insert({
       request_id: ticketId,
       type: formData.category || 'contact',
@@ -167,27 +167,36 @@ const handleSubmit = async (e) => {
     });
     if (dbError) throw dbError;
 
-    // E-mail jak dotąd
-    const emailData = {
-      id: ticketId,
-      name: formData.name,
-      email: formData.email,
-      phone: formData.phone,
-      device: formData.deviceType,
-      message: formData.message,
-      category: formData.category,
-      priority: formData.priority,
-      urgencyLevel: formData.urgencyLevel,
-      subject: formData.subject,
-      createdAt: new Date().toISOString(),
-      clientInfo: {
-        userAgent: navigator.userAgent,
-        language: navigator.language,
-        platform: navigator.platform,
-        timestamp: Date.now()
-      }
-    };
-    await emailService.sendRepairRequest(emailData);
+    // Wyślij powiadomienie przez notify-system
+    const notifyResponse = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-system`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        template: 'repair_request',
+        recipient: formData.email,
+        sendAdminCopy: true, // ⚠️ KLUCZOWE - administrator dostanie kopię
+        data: {
+          id: ticketId,
+          requestId: ticketId,
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone || 'Nie podano',
+          device: formData.deviceType || 'Nie podano',
+          message: formData.message,
+          category: formData.category,
+          priority: formData.priority,
+          subject: formData.subject,
+        }
+      })
+    });
+
+    if (!notifyResponse.ok) {
+      console.error('Błąd wysyłania powiadomienia:', await notifyResponse.text());
+      // Nie przerywaj - zgłoszenie jest już w bazie
+    }
 
     toast({
       title: "Zgłoszenie wysłane!",
