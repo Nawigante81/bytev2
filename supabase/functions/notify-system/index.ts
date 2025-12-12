@@ -192,7 +192,10 @@ Deno.serve(async (req: Request) => {
       }));
     }
 
-    const processor = await maybeTriggerProcessor(body?.processNow);
+    const processor = await maybeTriggerProcessor(
+      body?.processNow,
+      notifications.map((n: any) => n?.notification_id).filter(Boolean),
+    );
 
     return new Response(JSON.stringify({ success: true, notifications, processor }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -206,7 +209,7 @@ Deno.serve(async (req: Request) => {
   }
 });
 
-async function maybeTriggerProcessor(processNow: unknown) {
+async function maybeTriggerProcessor(processNow: unknown, notificationIds: string[]) {
   if (processNow === false) {
     return { triggered: false };
   }
@@ -221,7 +224,7 @@ async function maybeTriggerProcessor(processNow: unknown) {
         Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ source: 'notify-system' }),
+      body: JSON.stringify({ source: 'notify-system', notification_ids: notificationIds }),
       signal: controller.signal,
     });
 

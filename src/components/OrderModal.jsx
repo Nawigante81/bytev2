@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -24,6 +25,7 @@ const OrderModal = memo(({ isOpen, setIsOpen, service }) => {
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const modalRef = useRef(null);
+  const nameInputRef = useRef(null);
 
   useEffect(() => {
     if (user) {
@@ -39,13 +41,22 @@ const OrderModal = memo(({ isOpen, setIsOpen, service }) => {
     const handleEsc = (event) => {
       if (event.key === 'Escape') setIsOpen(false);
     };
-    if (isOpen) {
-      document.addEventListener('keydown', handleEsc);
-      document.body.style.overflow = 'hidden';
-    }
+
+    if (!isOpen) return;
+
+    document.addEventListener('keydown', handleEsc);
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const raf = requestAnimationFrame(() => {
+      nameInputRef.current?.focus?.();
+    });
+
     return () => {
+      cancelAnimationFrame(raf);
       document.removeEventListener('keydown', handleEsc);
-      document.body.style.overflow = 'auto';
+      document.body.style.overflow = previousOverflow;
     };
   }, [isOpen, setIsOpen]);
 
@@ -55,6 +66,63 @@ const OrderModal = memo(({ isOpen, setIsOpen, service }) => {
     });
     setErrors({});
   }, []);
+
+  const fetchServiceId = useCallback(async () => {
+    const isUuid = (value) =>
+      typeof value === 'string' &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+
+    if (!service) return { id: null, reason: 'Brak danych uslugi.' };
+
+    if (isUuid(service.id)) return { id: service.id, reason: null };
+    if (isUuid(service.service_id)) return { id: service.service_id, reason: null };
+
+    const slug = typeof service.slug === 'string' ? service.slug.trim() : '';
+    const serviceType = typeof service.service_type === 'string' ? service.service_type.trim() : '';
+    const title = typeof service.title === 'string' ? service.title.trim() : '';
+    const name = typeof service.name === 'string' ? service.name.trim() : '';
+
+    const trySelect = async (column, value) => {
+      const { data, error } = await supabase
+        .from('service_catalog')
+        .select('id')
+        .eq(column, value)
+        .limit(1)
+        .maybeSingle();
+      return { data, error };
+    };
+
+    const candidates = [
+      { column: 'slug', value: slug },
+      { column: 'service_type', value: serviceType || slug },
+      { column: 'title', value: title || name },
+      { column: 'name', value: name || title },
+    ].filter((c) => typeof c.value === 'string' && c.value.length > 0);
+
+    let slugColumnMissing = false;
+
+    for (const candidate of candidates) {
+      if (candidate.column === 'slug' && slugColumnMissing) continue;
+
+      const { data, error } = await trySelect(candidate.column, candidate.value);
+
+      if (error) {
+        const msg = String(error.message || '');
+        if (candidate.column === 'slug' && msg.includes('service_catalog.slug') && msg.includes('does not exist')) {
+          slugColumnMissing = true;
+          continue;
+        }
+        if (msg.includes(`service_catalog.${candidate.column}`) && msg.includes('does not exist')) {
+          continue;
+        }
+        return { id: null, reason: error.message || 'Blad pobierania ID uslugi.' };
+      }
+
+      if (data?.id) return { id: data.id, reason: null };
+    }
+
+    return { id: null, reason: 'Nie znaleziono uslugi w katalogu.' };
+  }, [service]);
 
   const validateForm = () => {
     const newErrors = {};
@@ -79,9 +147,16 @@ const OrderModal = memo(({ isOpen, setIsOpen, service }) => {
     setIsLoading(true);
 
     try {
+      let svc = null;
+      const { id: serviceId } = await fetchServiceId();
+      if (serviceId) {
+        svc = { id: serviceId };
+      }
+
+      if (!svc) {
       // Use maybeSingle + limit(1) to avoid Postgrest 'JSON object requested, multiple (or no) rows returned'
       // if the slug isn't unique or a row is missing. We still handle the not-found case below.
-      const { data: svc, error: slugError } = await supabase
+      const { data: svcData, error: slugError } = await supabase
         .from('service_catalog')
         .select('id')
         .eq('slug', service.slug)
@@ -91,8 +166,10 @@ const OrderModal = memo(({ isOpen, setIsOpen, service }) => {
       if (slugError) {
         throw new Error(slugError.message);
       }
-      if (!svc) {
+      if (!svcData) {
         throw new Error('Nie znaleziono usługi (slug nie istnieje).');
+      }
+      svc = svcData;
       }
 
       const orderData = {
@@ -129,11 +206,14 @@ const OrderModal = memo(({ isOpen, setIsOpen, service }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [service, formData, user, isLoading, toast, resetForm, setIsOpen]);
+  }, [fetchServiceId, service, formData, user, isLoading, toast, resetForm, setIsOpen]);
 
   if (!service) return null;
 
-  return (
+  const portalTarget = typeof document !== 'undefined' ? document.body : null;
+  if (!portalTarget) return null;
+
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
         <motion.div
@@ -142,6 +222,8 @@ const OrderModal = memo(({ isOpen, setIsOpen, service }) => {
           exit={{ opacity: 0 }}
           className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
           onClick={() => setIsOpen(false)}
+          role="dialog"
+          aria-modal="true"
         >
           <motion.div
             ref={modalRef}
@@ -157,6 +239,7 @@ const OrderModal = memo(({ isOpen, setIsOpen, service }) => {
               size="icon"
               className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"
               onClick={() => setIsOpen(false)}
+              aria-label="Zamknij"
             >
               <X className="h-6 w-6" />
             </Button>
@@ -170,7 +253,7 @@ const OrderModal = memo(({ isOpen, setIsOpen, service }) => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="name">Imię i nazwisko</Label>
-                  <Input id="name" name="name" value={formData.name} onChange={handleChange} required autoComplete="name" />
+                  <Input ref={nameInputRef} id="name" name="name" value={formData.name} onChange={handleChange} required autoComplete="name" />
                   {errors.name && <p className="text-destructive text-sm mt-1">{errors.name}</p>}
                 </div>
                 <div>
@@ -212,6 +295,8 @@ const OrderModal = memo(({ isOpen, setIsOpen, service }) => {
         </motion.div>
       )}
     </AnimatePresence>
+    ,
+    portalTarget
   );
 });
 

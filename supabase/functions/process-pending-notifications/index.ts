@@ -36,14 +36,26 @@ Deno.serve(async (req: Request) => {
   try {
     console.log('🔄 Starting pending notifications processor...');
 
+    const body = await req.json().catch(() => ({}));
+    const rawIds = (body?.notification_ids ?? body?.notification_id ?? []) as unknown;
+    const notificationIds = Array.isArray(rawIds) ? rawIds : [rawIds];
+    const ids = notificationIds
+      .filter((value) => typeof value === 'string')
+      .map((value) => value.trim())
+      .filter(Boolean);
+
     // Pobierz wszystkie powiadomienia w statusie 'pending'
-    const { data: pendingNotifications, error: fetchError } = await supabaseAdmin
+    const query = supabaseAdmin
       .from('notifications')
       .select('*')
       .eq('status', 'pending')
       .lt('retry_count', 3) // Maksymalnie 3 próby
       .order('created_at', { ascending: true })
       .limit(50); // Przetwarzaj max 50 na raz
+
+    const { data: pendingNotifications, error: fetchError } = ids.length > 0
+      ? await query.in('notification_id', ids)
+      : await query;
 
     if (fetchError) {
       throw new Error(`Error fetching notifications: ${fetchError.message}`);

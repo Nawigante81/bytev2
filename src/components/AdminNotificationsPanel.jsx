@@ -103,6 +103,26 @@ const AdminNotificationsPanel = () => {
     });
   };
 
+  const processPendingNotifications = async () => {
+    setIsLoading(true);
+    try {
+      const result = await emailService.processPendingNotifications();
+      toast({
+        title: 'Przetwarzanie kolejki zakonczone',
+        description: `Sent: ${result?.sent ?? 0}, Failed: ${result?.failed ?? 0}`,
+      });
+      loadStats();
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Blad przetwarzania kolejki',
+        description: error?.message || 'Nie udalo sie przetworzyc powiadomien',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const sendTestEmail = async () => {
     if (!testEmail.to || !testEmail.subject) {
       toast({
@@ -223,6 +243,16 @@ const AdminNotificationsPanel = () => {
         <p className="text-muted-foreground">
           Zarządzaj emailami, przypomnieniami i powiadomieniami
         </p>
+        <div className="mt-4 flex justify-center gap-3">
+          <Button variant="outline" onClick={loadStats} disabled={isLoading}>
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Odswiez statystyki
+          </Button>
+          <Button variant="secondary" onClick={processPendingNotifications} disabled={isLoading}>
+            <RefreshCw className={isLoading ? "w-4 h-4 mr-2 animate-spin" : "w-4 h-4 mr-2"} />
+            Przetworz pending
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}

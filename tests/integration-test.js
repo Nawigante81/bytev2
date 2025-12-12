@@ -77,6 +77,13 @@ class IntegrationTester {
     this.log('\n--- Test autoryzacji Supabase ---', 'info');
 
     try {
+      if (!this.supabase) {
+        this.log('? Brak połączenia z Supabase - pomijam test autoryzacji', 'warning');
+        this.results.warningCount++;
+        this.results.warnings.push('Supabase Auth: Pominięto (brak konfiguracji/połączenia)');
+        return true;
+      }
+
       const testEmail = `test-${Date.now()}@example.com`;
       const testPassword = 'TestPassword123!@#';
 
@@ -121,6 +128,13 @@ class IntegrationTester {
     this.log('\n--- Test bazy danych Supabase ---', 'info');
 
     try {
+      if (!this.supabase) {
+        this.log('? Brak połączenia z Supabase - pomijam test bazy danych', 'warning');
+        this.results.warningCount++;
+        this.results.warnings.push('Supabase DB: Pominięto (brak konfiguracji/połączenia)');
+        return true;
+      }
+
       const { data, error, count } = await this.supabase
         .from('profiles')
         .select('*', { count: 'exact', head: true });
@@ -152,6 +166,13 @@ class IntegrationTester {
     this.log('\n--- Test Row Level Security ---', 'info');
 
     try {
+      if (!this.supabase) {
+        this.log('? Brak połączenia z Supabase - pomijam test RLS', 'warning');
+        this.results.warningCount++;
+        this.results.warnings.push('Supabase RLS: Pominięto (brak konfiguracji/połączenia)');
+        return true;
+      }
+
       const { data, error } = await this.supabase
         .from('profiles')
         .select('*')
@@ -231,6 +252,13 @@ class IntegrationTester {
 
     try {
       const { supabaseUrl, supabaseAnonKey } = this.config;
+
+      if (!supabaseUrl || !supabaseAnonKey) {
+        this.log('? Brak konfiguracji Supabase - pomijam test Edge Function', 'warning');
+        this.results.warningCount++;
+        this.results.warnings.push('Edge Function: Pominięto (brak konfiguracji Supabase)');
+        return true;
+      }
 
       const response = await fetch(
         `${supabaseUrl}/functions/v1/send-email-resend`,
@@ -380,6 +408,13 @@ class IntegrationTester {
     try {
       const { supabaseUrl } = this.config;
 
+      if (!supabaseUrl) {
+        this.log('? Brak konfiguracji Supabase URL - pomijam test CORS', 'warning');
+        this.results.warningCount++;
+        this.results.warnings.push('CORS: Pominięto (brak konfiguracji Supabase URL)');
+        return true;
+      }
+
       const response = await fetch(`${supabaseUrl}/rest/v1/`, {
         method: 'OPTIONS',
         headers: {
@@ -428,6 +463,8 @@ class IntegrationTester {
       { name: 'EMAIL_DOMAIN', value: this.config.emailDomain }
     ];
 
+    let allRequiredPresent = true;
+
     requiredVars.forEach(({ name, value }) => {
       if (value) {
         this.log(`✓ ${name} jest ustawiona`, 'success');
@@ -436,6 +473,7 @@ class IntegrationTester {
         this.log(`✗ ${name} BRAK`, 'error');
         this.results.failed++;
         this.results.errors.push(`Env: Brak ${name}`);
+        allRequiredPresent = false;
       }
     });
 
@@ -449,7 +487,7 @@ class IntegrationTester {
       }
     });
 
-    return true;
+    return allRequiredPresent;
   }
 
   generateReport() {
@@ -497,7 +535,12 @@ class IntegrationTester {
     this.log('Rozpoczynam testy integracyjne...', 'info');
     this.log(`Środowisko: ${this.config.environment}\n`, 'info');
 
-    await this.testEnvironmentVariables();
+    const envOk = await this.testEnvironmentVariables();
+    if (!envOk) {
+      this.log('\n⚠ Brak wymaganych zmiennych środowiskowych - przerywam dalsze testy zależne od konfiguracji', 'warning');
+      return this.generateReport();
+    }
+
     await this.testSupabaseConnection();
     await this.testSupabaseAuth();
     await this.testSupabaseDatabase();

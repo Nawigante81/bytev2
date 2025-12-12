@@ -191,10 +191,14 @@ class EmailQueue {
     }
 
     const result = await response.json().catch(() => ({}));
+    const processor = result?.processor;
+    const queued = Boolean(processor?.triggered && processor?.ok === false);
     return {
       success: true,
       provider: 'notify-system',
-      result
+      queued,
+      processor,
+      result,
     };
   }
 
@@ -1069,7 +1073,7 @@ class EmailService {
         console.log(`✅ Email wysłany pomyślnie: ${template} -> ${to}`);
         
         // Zaktualizuj log po udanej wysyłce
-        await this.updateEmailLog(to, template, 'sent', result);
+        await this.updateEmailLog(to, template, result?.queued ? 'queued' : 'sent', result);
         
         return result;
       } else {
@@ -1117,6 +1121,7 @@ class EmailService {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${this.config.supabase.anonKey}`,
+        'apikey': this.config.supabase.anonKey,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -1145,6 +1150,28 @@ class EmailService {
   }
 
   // Queue-based sending dla większej niezawodności
+  async processPendingNotifications(notificationIds = []) {
+    const ids = Array.isArray(notificationIds) ? notificationIds : [notificationIds];
+    const body = ids.length > 0 ? { notification_ids: ids } : {};
+
+    const response = await fetch(`${this.config.supabase.url}/functions/v1/process-pending-notifications`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.config.supabase.anonKey}`,
+        'apikey': this.config.supabase.anonKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => '');
+      throw new Error(`process-pending-notifications error: ${response.status} - ${errorText || response.statusText}`);
+    }
+
+    return response.json().catch(() => ({}));
+  }
+
   async sendEmailWithQueue(to, template, data, options = {}) {
     const emailJob = {
       to,
