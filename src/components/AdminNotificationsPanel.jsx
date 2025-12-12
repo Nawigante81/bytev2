@@ -43,6 +43,14 @@ const AdminNotificationsPanel = () => {
     message: ''
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [autoProcess, setAutoProcess] = useState(() => {
+    try {
+      const raw = localStorage.getItem('adminNotifications.autoProcess');
+      return raw === 'true';
+    } catch {
+      return false;
+    }
+  });
 
   // Symulacja danych
   const [mockData] = useState({
@@ -93,6 +101,14 @@ const AdminNotificationsPanel = () => {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem('adminNotifications.autoProcess', String(autoProcess));
+    } catch {
+      // ignore
+    }
+  }, [autoProcess]);
+
   const loadStats = () => {
     const notificationStats = notificationService.getNotificationStats();
     setStats({
@@ -122,6 +138,43 @@ const AdminNotificationsPanel = () => {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!autoProcess) return;
+
+    let cancelled = false;
+    const run = async () => {
+      if (cancelled) return;
+      if (document.hidden) return;
+      if (isLoading) return;
+      try {
+        const result = await emailService.processPendingNotifications();
+        if ((result?.failed ?? 0) > 0) {
+          toast({
+            variant: 'destructive',
+            title: 'Auto: czesc powiadomien nie wyslana',
+            description: `Failed: ${result?.failed ?? 0}`,
+          });
+        }
+      } catch (error) {
+        toast({
+          variant: 'destructive',
+          title: 'Auto: blad przetwarzania kolejki',
+          description: error?.message || 'Nie udalo sie przetworzyc powiadomien',
+        });
+      }
+    };
+
+    // Run once quickly after enabling, then periodically.
+    const timeout = setTimeout(run, 1500);
+    const interval = setInterval(run, 120000); // co 2 minuty
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+      clearInterval(interval);
+    };
+  }, [autoProcess, isLoading, toast]);
 
   const sendTestEmail = async () => {
     if (!testEmail.to || !testEmail.subject) {
@@ -252,6 +305,18 @@ const AdminNotificationsPanel = () => {
             <RefreshCw className={isLoading ? "w-4 h-4 mr-2 animate-spin" : "w-4 h-4 mr-2"} />
             Przetworz pending
           </Button>
+        </div>
+        <div className="mt-3 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+          <input
+            id="auto-process-pending"
+            type="checkbox"
+            checked={autoProcess}
+            onChange={(e) => setAutoProcess(e.target.checked)}
+            className="accent-primary"
+          />
+          <label htmlFor="auto-process-pending">
+            Auto przetwarzaj pending (co 2 min)
+          </label>
         </div>
       </div>
 
