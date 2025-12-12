@@ -4,6 +4,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const ADMIN_EMAIL = Deno.env.get('ADMIN_EMAIL') || 'serwis@byteclinic.pl';
+const PROCESS_PENDING_NOTIFICATIONS_URL = `${SUPABASE_URL}/functions/v1/process-pending-notifications`;
 
 const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false }
@@ -130,10 +131,12 @@ Deno.serve(async (req: Request) => {
 
   try {
     const body = await req.json();
-    const templateKey = (body?.template || '').toLowerCase();
-    const renderer = TEMPLATE_RENDERERS[templateKey];
 
-    if (!renderer) {
+    const hasRawContent = typeof body?.subject === 'string' && typeof body?.html === 'string';
+    const templateKey = (body?.template || (hasRawContent ? 'custom' : '')).toLowerCase();
+    const renderer = hasRawContent ? null : TEMPLATE_RENDERERS[templateKey];
+
+    if (!hasRawContent && !renderer) {
       return new Response(JSON.stringify({ success: false, error: 'Nieznany template powiadomienia' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -141,10 +144,10 @@ Deno.serve(async (req: Request) => {
     }
 
     const data = body.data || {};
-    const subject = renderer.subject(data);
-    const html = renderer.html(data);
+    const subject = hasRawContent ? body.subject : renderer!.subject(data);
+    const html = hasRawContent ? body.html : renderer!.html(data);
 
-    const primaryRecipient = body.recipient || data.email || (renderer.alwaysSendAdminCopy ? ADMIN_EMAIL : null);
+    const primaryRecipient = body.recipient || data.email || (!hasRawContent && renderer!.alwaysSendAdminCopy ? ADMIN_EMAIL : null);
 
     if (!primaryRecipient) {
       return new Response(JSON.stringify({ success: false, error: 'Brak odbiorcy powiadomienia' }), {
@@ -162,7 +165,8 @@ Deno.serve(async (req: Request) => {
       booking_id: data.bookingId || data.booking_id || null,
       repair_id: data.repairId || data.repair_id || null,
       user_id: data.userId || data.user_id || null,
-      source: 'notify-system'
+      source: 'notify-system',
+      ...((body?.metadata && typeof body.metadata === 'object') ? body.metadata : {})
     };
 
     notifications.push(await insertNotification({
@@ -175,7 +179,7 @@ Deno.serve(async (req: Request) => {
       metadata
     }));
 
-    const shouldSendAdminCopy = body.sendAdminCopy || renderer.alwaysSendAdminCopy;
+    const shouldSendAdminCopy = body.sendAdminCopy || (!hasRawContent && renderer!.alwaysSendAdminCopy);
     if (shouldSendAdminCopy && primaryRecipient !== ADMIN_EMAIL) {
       notifications.push(await insertNotification({
         template: templateKey,
@@ -188,7 +192,9 @@ Deno.serve(async (req: Request) => {
       }));
     }
 
-    return new Response(JSON.stringify({ success: true, notifications }), {
+    const processor = await maybeTriggerProcessor(body?.processNow);
+
+    return new Response(JSON.stringify({ success: true, notifications, processor }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   } catch (error) {
@@ -199,6 +205,39 @@ Deno.serve(async (req: Request) => {
     });
   }
 });
+
+async function maybeTriggerProcessor(processNow: unknown) {
+  if (processNow === false) {
+    return { triggered: false };
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+
+  try {
+    const response = await fetch(PROCESS_PENDING_NOTIFICATIONS_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ source: 'notify-system' }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      return { triggered: true, ok: false, status: response.status, error: text || response.statusText };
+    }
+
+    const json = await response.json().catch(() => null);
+    return { triggered: true, ok: true, result: json };
+  } catch (error: any) {
+    return { triggered: true, ok: false, error: error?.message || String(error) };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 async function insertNotification(payload: {
   template: string;

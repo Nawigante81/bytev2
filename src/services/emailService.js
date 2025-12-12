@@ -21,6 +21,21 @@ const EMAIL_CONFIG = {
   }
 };
 
+const NOTIFY_SYSTEM_URL = `${EMAIL_CONFIG.supabase.url}/functions/v1/notify-system`;
+
+const TEMPLATE_TO_NOTIFY_TYPE = {
+  bookingConfirmation: 'booking_confirmation',
+  repairRequest: 'repair_request',
+  repairStatusUpdate: 'repair_status_update',
+  repairReady: 'repair_ready',
+  appointmentReminder: 'appointment_reminder',
+  emailConfirmation: 'email_confirmation',
+};
+
+function toNotifyTemplateType(template) {
+  return TEMPLATE_TO_NOTIFY_TYPE[template] || template;
+}
+
 // Queue system dla emaili
 class EmailQueue {
   constructor() {
@@ -149,31 +164,37 @@ class EmailQueue {
     };
 
     // Wywołaj funkcję do dodania powiadomienia
-    const response = await fetch(`${EMAIL_CONFIG.supabase.url}/rest/v1/notifications`, {
+    const response = await fetch(NOTIFY_SYSTEM_URL, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${EMAIL_CONFIG.supabase.anonKey}`,
         'Content-Type': 'application/json',
-        'apikey': EMAIL_CONFIG.supabase.anonKey,
-        'Prefer': 'return=representation'
       },
-      body: JSON.stringify(notificationData)
+      body: JSON.stringify({
+        template: toNotifyTemplateType(job.template),
+        recipient: job.to,
+        subject: job.subject,
+        html: job.html,
+        data: job.data || {},
+        metadata: job.metadata || {},
+        sendAdminCopy: Boolean(job.sendAdminCopy),
+        processNow: job.processNow !== false,
+      })
     });
 
     if (!response.ok) {
       const errorText = await response.text();
       return {
         success: false,
-        error: `Failed to add notification: ${response.statusText} - ${errorText}`
+        error: `notify-system error: ${response.status} - ${errorText || response.statusText}`
       };
     }
 
-    const result = await response.json();
+    const result = await response.json().catch(() => ({}));
     return {
       success: true,
-      provider: 'notification_system',
-      notification_id: result.notification_id,
-      message: 'Notification added to processing queue'
+      provider: 'notify-system',
+      result
     };
   }
 
@@ -1044,7 +1065,7 @@ class EmailService {
       });
       
       if (this.config.provider === 'supabase') {
-        const result = await this.sendWithSupabase(to, emailContent, template, data);
+        const result = await this.sendWithSupabase(to, emailContent, template, data, options);
         console.log(`✅ Email wysłany pomyślnie: ${template} -> ${to}`);
         
         // Zaktualizuj log po udanej wysyłce
@@ -1067,7 +1088,7 @@ class EmailService {
 
 
 
-  async sendWithSupabase(to, emailContent, template, data) {
+  async sendWithSupabase(to, emailContent, template, data, options = {}) {
     // Nowa implementacja używa systemu powiadomień zamiast edge functions
     const notificationData = {
       notification_id: `email_${crypto.randomUUID()}`,
@@ -1092,28 +1113,34 @@ class EmailService {
       }
     };
 
-    const response = await fetch(`${this.config.supabase.url}/rest/v1/notifications`, {
+    const response = await fetch(NOTIFY_SYSTEM_URL, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${this.config.supabase.anonKey}`,
         'Content-Type': 'application/json',
-        'apikey': this.config.supabase.anonKey,
-        'Prefer': 'return=representation'
       },
-      body: JSON.stringify(notificationData)
+      body: JSON.stringify({
+        template: toNotifyTemplateType(template),
+        recipient: to,
+        subject: emailContent.subject,
+        html: emailContent.html,
+        data: data || {},
+        metadata: notificationData.metadata,
+        sendAdminCopy: Boolean(options.sendAdminCopy),
+        processNow: options.processNow !== false,
+      })
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Failed to add notification: ${response.statusText} - ${errorText}`);
+      throw new Error(`notify-system error: ${response.status} - ${errorText || response.statusText}`);
     }
 
-    const result = await response.json();
+    const result = await response.json().catch(() => ({}));
     return {
       success: true,
-      provider: 'notification_system',
-      notification_id: result.notification_id,
-      message: 'Notification added to processing queue'
+      provider: 'notify-system',
+      result
     };
   }
 

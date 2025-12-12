@@ -86,6 +86,9 @@ serve(async (req) => {
   }
 
   try {
+    const authHeader = req.headers.get('Authorization') || ''
+    const accessToken = authHeader.toLowerCase().startsWith('bearer ') ? authHeader.slice(7).trim() : ''
+
     // Get all environment variables
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
@@ -105,9 +108,26 @@ serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false }
     })
 
+    // Bookings are only for logged-in users (reject anon key calls)
+    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(accessToken)
+    if (userError || !userData?.user) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+    const userEmail = (userData.user.email || '').toLowerCase()
+
     // Parse request
     const requestData: BookingRequest = await req.json()
     
+    if (userEmail && requestData.email?.toLowerCase() !== userEmail) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Email mismatch' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     console.log('📋 Creating booking:', requestData)
 
     // 1. Create customer record (upsert) - ignore duplicates
@@ -139,9 +159,13 @@ serve(async (req) => {
       .from('bookings')
       .insert({
         booking_id: requestData.bookingId,
+        customer_name: requestData.name,
+        customer_email: requestData.email,
+        customer_phone: requestData.phone,
         service_type: requestData.service.toLowerCase().replace(/\s+/g, '-'),
         service_name: requestData.service,
         device_type: requestData.device,
+        device_description: requestData.description || null,
         booking_date: parsedDate, // Użyj sparsowanej daty
         booking_time: requestData.time,
         duration_minutes: requestData.duration,
@@ -161,15 +185,28 @@ serve(async (req) => {
 
     // 3. Send notification email (optional, don't fail if this fails)
     try {
-      const emailResponse = await fetch(`${supabaseUrl}/functions/v1/notify-booking-confirmation`, {
+      const emailResponse = await fetch(`${supabaseUrl}/functions/v1/notify-system`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${serviceRoleKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          to: requestData.email,
-          bookingData: requestData
+          template: 'booking_confirmation',
+          recipient: requestData.email,
+          sendAdminCopy: true,
+          data: {
+            bookingId: requestData.bookingId,
+            name: requestData.name,
+            email: requestData.email,
+            phone: requestData.phone,
+            date: parsedDate,
+            time: requestData.time,
+            service: requestData.service,
+            duration: requestData.duration,
+            price: requestData.price,
+            device: requestData.device,
+          }
         })
       })
       

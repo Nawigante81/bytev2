@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { useBookingNotifications } from '@/hooks/useNotifications';
 import { supabase } from '@/lib/supabaseClient';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
 
 // Symulacja dostępnych terminów
 const generateAvailableSlots = (date) => {
@@ -61,6 +62,7 @@ const serviceTypes = [
 
 const BookingSystem = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const { completeBooking } = useBookingNotifications();
   const [step, setStep] = useState(1);
   const [selectedDate, setSelectedDate] = useState('');
@@ -76,6 +78,12 @@ const BookingSystem = () => {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
+
+  useEffect(() => {
+    if (user?.email) {
+      setCustomerInfo(prev => ({ ...prev, email: user.email }));
+    }
+  }, [user?.email]);
 
   // Generuj daty (następne 14 dni roboczych)
   const generateDates = () => {
@@ -117,22 +125,27 @@ const BookingSystem = () => {
   const handleSubmit = async () => {
     setIsLoading(true);
     try {
+      if (!user?.id || !user?.email) {
+        toast({ variant: 'destructive', title: 'Wymagane logowanie', description: 'Aby zarezerwować termin musisz być zalogowany.' });
+        return;
+      }
+
       const selectedServiceData = serviceTypes.find(s => s.id === selectedService);
       const bookingId = 'BC-' + Math.random().toString(36).substr(2, 6).toUpperCase();
       const selectedDateData = availableDates.find(d => d.value === selectedDate);
 
       const bookingData = {
         bookingId,
-        email: customerInfo.email,
-        name: customerInfo.name,
+        email: user.email,
+        name: customerInfo.name.trim(),
         date: selectedDateData?.label || selectedDate,
         time: selectedSlot,
         service: selectedServiceData?.name,
         duration: selectedServiceData?.duration,
         price: selectedServiceData?.price,
         device: customerInfo.device,
-        phone: customerInfo.phone,
-        description: customerInfo.description,
+        phone: customerInfo.phone.trim(),
+        description: customerInfo.description?.trim() || '',
       };
 
       // Utwórz rezerwację przez edge function (która również tworzy powiadomienie)
@@ -141,8 +154,6 @@ const BookingSystem = () => {
       console.log('✅ Rezerwacja utworzona:', fnData);
 
       // Zapisz również w tabeli requests dla spójności
-      const { data: authData } = await supabase.auth.getUser();
-      const userId = authData?.user?.id || null;
       const { error: dbError } = await supabase.from('requests').insert({
         request_id: bookingId,
         type: 'booking',
@@ -150,20 +161,22 @@ const BookingSystem = () => {
         customer_name: bookingData.name,
         customer_email: bookingData.email,
         customer_phone: bookingData.phone,
+        consent: true,
         device_type: bookingData.device,
         device_model: null,
         device_description: bookingData.description,
         message: `Rezerwacja usługi: ${bookingData.service} (${bookingData.date} ${bookingData.time})`,
         priority: 'medium',
         status: 'nowe',
-        user_id: userId,
+        user_id: user.id,
         source_url: window.location.href,
         user_agent: navigator.userAgent,
       });
       if (dbError) throw dbError;
 
       // Wyślij powiadomienie do administratora o nowej rezerwacji
-      try {
+      if (false) {
+        try {
         const notifyResponse = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-system`, {
           method: 'POST',
           headers: {
@@ -194,6 +207,8 @@ const BookingSystem = () => {
       } catch (notifyError) {
         console.error('Błąd powiadomienia:', notifyError);
         // Nie przerywaj - rezerwacja jest już utworzona
+      }
+
       }
 
       completeBooking?.(bookingData);
@@ -486,7 +501,7 @@ const BookingSystem = () => {
                       <Input
                         type="email"
                         value={customerInfo.email}
-                        onChange={(e) => setCustomerInfo({...customerInfo, email: e.target.value})}
+                        disabled
                         placeholder="jan@example.com"
                       />
                     </div>
@@ -550,7 +565,7 @@ const BookingSystem = () => {
                   </Button>
                   <Button 
                     onClick={handleSubmit}
-                    disabled={!customerInfo.name || !customerInfo.email || !customerInfo.phone || isLoading}
+                    disabled={!user?.email || !customerInfo.name || !customerInfo.phone || isLoading}
                     className="min-w-[140px]"
                   >
                     {isLoading ? (
