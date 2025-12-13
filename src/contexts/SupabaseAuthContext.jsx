@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
-import { supabase } from '@/lib/supabaseClient';
+import { supabase, isSupabaseConfigured, supabaseConfigError } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 
 const AuthContext = createContext(undefined);
@@ -14,6 +14,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = useCallback(async (userId) => {
+    if (!isSupabaseConfigured || !supabase) return null;
     if (!userId) return null;
     try {
       const { data, error } = await supabase
@@ -71,6 +72,14 @@ export const AuthProvider = ({ children }) => {
   }, [fetchProfile]);
 
   useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) {
+      setSession(null);
+      setUser(null);
+      setProfile(null);
+      setLoading(false);
+      return;
+    }
+
     const getSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       handleSession(session);
@@ -87,7 +96,18 @@ export const AuthProvider = ({ children }) => {
     return () => subscription.unsubscribe();
   }, [handleSession]);
 
+  const requireSupabase = useCallback(() => {
+    if (isSupabaseConfigured && supabase) return true;
+    toast({
+      variant: 'destructive',
+      title: 'Brak konfiguracji Supabase',
+      description: supabaseConfigError || 'Uzupełnij VITE_SUPABASE_URL i VITE_SUPABASE_ANON_KEY w pliku .env.',
+    });
+    return false;
+  }, [toast]);
+
   const signUp = useCallback(async (email, password, options) => {
+    if (!requireSupabase()) return { error: new Error(supabaseConfigError || 'Supabase not configured') };
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -120,9 +140,10 @@ export const AuthProvider = ({ children }) => {
     }
 
     return { error };
-  }, [toast]);
+  }, [toast, requireSupabase]);
 
   const signIn = useCallback(async (email, password) => {
+    if (!requireSupabase()) return { error: new Error(supabaseConfigError || 'Supabase not configured') };
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -137,9 +158,10 @@ export const AuthProvider = ({ children }) => {
     }
 
     return { error };
-  }, [toast]);
+  }, [toast, requireSupabase]);
 
   const signInWithOAuth = useCallback(async (provider) => {
+    if (!requireSupabase()) return;
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
@@ -149,9 +171,10 @@ export const AuthProvider = ({ children }) => {
     if (error) {
       toast({ variant: "destructive", title: "Błąd logowania OAuth", description: error.message });
     }
-  }, [toast]);
+  }, [toast, requireSupabase]);
 
   const signInWithOtp = useCallback(async (email) => {
+    if (!requireSupabase()) return { error: new Error(supabaseConfigError || 'Supabase not configured') };
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
@@ -163,9 +186,10 @@ export const AuthProvider = ({ children }) => {
     } else {
       toast({ title: "Wysłano magiczny link!", description: "Sprawdź swoją skrzynkę e-mail." });
     }
-  }, [toast]);
+  }, [toast, requireSupabase]);
 
   const signOut = useCallback(async () => {
+    if (!requireSupabase()) return { error: new Error(supabaseConfigError || 'Supabase not configured') };
     const { error } = await supabase.auth.signOut();
 
     if (error) {
@@ -203,7 +227,7 @@ export const AuthProvider = ({ children }) => {
     }
 
     return { error };
-  }, [toast]);
+  }, [toast, requireSupabase]);
 
   const isAdmin = useMemo(() => {
     return profile?.role === 'admin';

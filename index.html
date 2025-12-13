@@ -71,6 +71,7 @@
 			})();
 		</script>
 		<link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" as="style"/>
+		<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap"/>
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 		
 		<!-- PWA -->
@@ -89,6 +90,22 @@
 		<script>
 			if ('serviceWorker' in navigator) {
 				window.addEventListener('load', () => {
+					const isLocalhost = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+					if (isLocalhost) {
+						// Avoid SW caching issues during local development
+						navigator.serviceWorker.getRegistrations()
+							.then((regs) => Promise.all(regs.map((r) => r.unregister())))
+							.catch(() => {});
+
+						if ('caches' in window) {
+							caches.keys()
+								.then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
+								.catch(() => {});
+						}
+
+						return;
+					}
+
 					navigator.serviceWorker.register('/sw.js')
 						.then((registration) => {
 							console.log('[App] Service Worker registered:', registration.scope);
