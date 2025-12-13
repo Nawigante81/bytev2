@@ -1,0 +1,98 @@
+{
+  "timestamp": "2025-12-13T00:29:37.120Z",
+  "environment": "https://wllxicmacmfzmqdnovhp.supabase.co",
+  "summary": {
+    "total": 12,
+    "passed": 4,
+    "failed": 8,
+    "successRate": 33.3
+  },
+  "forms": {
+    "contactForm": {
+      "name": "Contact Form",
+      "file": "src/pages/Contact.jsx",
+      "emailMethod": "notify-system",
+      "tested": true
+    },
+    "bookingSystem": {
+      "name": "Booking System",
+      "file": "src/components/BookingSystem.jsx",
+      "emailMethod": "create-booking edge function",
+      "tested": true
+    },
+    "diagnosisModal": {
+      "name": "Diagnosis Modal",
+      "file": "src/components/DiagnosisModal.jsx",
+      "emailMethod": "none (database only)",
+      "tested": true
+    },
+    "orderModal": {
+      "name": "Order Modal",
+      "file": "src/components/OrderModal.jsx",
+      "emailMethod": "none (database only)",
+      "tested": true
+    }
+  },
+  "tests": [
+    {
+      "name": "1. Połączenie z Supabase",
+      "status": "failed",
+      "message": "Błąd połączenia z Supabase: TypeError: fetch failed"
+    },
+    {
+      "name": "2. Tabela requests (Contact Form)",
+      "status": "failed",
+      "message": "Błąd odczytu tabeli requests: TypeError: fetch failed"
+    },
+    {
+      "name": "3. Endpoint notify-system",
+      "status": "failed",
+      "message": "Błąd połączenia z notify-system: fetch failed"
+    },
+    {
+      "name": "4. Tabele systemu rezerwacji",
+      "status": "failed",
+      "message": "Błąd odczytu tabeli bookings: TypeError: fetch failed"
+    },
+    {
+      "name": "5. Endpoint create-booking",
+      "status": "failed",
+      "message": "Błąd połączenia z create-booking: fetch failed"
+    },
+    {
+      "name": "6. Tabela diagnosis_requests",
+      "status": "failed",
+      "message": "Błąd zapisu do diagnosis_requests: TypeError: fetch failed"
+    },
+    {
+      "name": "7. Tabela service_orders",
+      "status": "failed",
+      "message": "Błąd odczytu service_catalog: TypeError: fetch failed"
+    },
+    {
+      "name": "8. Contact Form - Zapis do bazy",
+      "status": "failed",
+      "message": "Błąd zapisu do requests: TypeError: fetch failed"
+    },
+    {
+      "name": "9. Contact Form - Walidacja",
+      "status": "passed",
+      "message": "Walidacja formularza kontaktowego działa poprawnie"
+    },
+    {
+      "name": "10. Contact Form - Kategorie",
+      "status": "passed",
+      "message": "Wszystkie 8 kategorii formularza kontaktowego są poprawne"
+    },
+    {
+      "name": "11. Booking System - Typy usług",
+      "status": "passed",
+      "message": "Wszystkie 5 typy usług rezerwacji są poprawne"
+    },
+    {
+      "name": "12. Struktura szablonów email",
+      "status": "passed",
+      "message": "Wszystkie 5 wymaganych szablonów email są zdefiniowane"
+    }
+  ]
+}
