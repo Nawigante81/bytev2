@@ -136,7 +136,7 @@ node diagnoza-email-system.js
 
 **Rozwiązanie:**
 ```bash
-supabase secrets set RESEND_API_KEY=re_Gnup8gWT_iscYWzBPSfrwwD1yzGNaqgUA --project-ref wllxicmacmfzmqdnovhp
+supabase secrets set RESEND_API_KEY=<RESEND_API_KEY> --project-ref wllxicmacmfzmqdnovhp
 ```
 
 ---
@@ -191,7 +191,7 @@ Jeśli nie jesteś pewien co nie działa, wykonaj wszystko:
 
 ```bash
 # 1. Ustaw secrets
-supabase secrets set RESEND_API_KEY=re_Gnup8gWT_iscYWzBPSfrwwD1yzGNaqgUA --project-ref wllxicmacmfzmqdnovhp
+supabase secrets set RESEND_API_KEY=<RESEND_API_KEY> --project-ref wllxicmacmfzmqdnovhp
 supabase secrets set MAIL_FROM=onboarding@resend.dev --project-ref wllxicmacmfzmqdnovhp
 supabase secrets set ADMIN_EMAIL=serwis@byteclinic.pl --project-ref wllxicmacmfzmqdnovhp
 

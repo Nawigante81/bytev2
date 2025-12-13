@@ -12,7 +12,7 @@ const SMTP_CONFIGS = {
     secure: false, // TLS
     auth: {
       user: 'supabase',
-      pass: process.env.VITE_SUPABASE_SERVICE_ROLE_KEY || ''
+      pass: process.env.SUPABASE_SERVICE_ROLE_KEY || ''
     },
     tls: {
       rejectUnauthorized: true,

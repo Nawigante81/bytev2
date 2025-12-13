@@ -96,7 +96,7 @@ supabase secrets set MAIL_FROM=noreply@byteclinic.pl --project-ref wllxicmacmfzm
 
 ```bash
 curl -X POST "https://wllxicmacmfzmqdnovhp.supabase.co/functions/v1/process-pending-notifications" \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndsbHhpY21hY21mem1xZG5vdmhwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NDk0MDgyNywiZXhwIjoyMDgwNTE2ODI3fQ.L9wOOdZeSQ7_ZyrOrN6VIYeKg8-gtsbh44gGypQNWeU"
+  -H "Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>"
 ```
 
 **Sukces wygląda tak:**
@@ -168,7 +168,7 @@ Emaile będą działać natychmiast, a gdy domain się zweryfikuje, zmień na `n
 **Kompletna lista secrets w Supabase:**
 
 ```bash
-supabase secrets set RESEND_API_KEY=re_Gnup8gWT_iscYWzBPSfrwwD1yzGNaqgUA --project-ref wllxicmacmfzmqdnovhp
+supabase secrets set RESEND_API_KEY=<RESEND_API_KEY> --project-ref wllxicmacmfzmqdnovhp
 supabase secrets set MAIL_FROM=noreply@byteclinic.pl --project-ref wllxicmacmfzmqdnovhp
 supabase secrets set ADMIN_EMAIL=serwis@byteclinic.pl --project-ref wllxicmacmfzmqdnovhp
 ```

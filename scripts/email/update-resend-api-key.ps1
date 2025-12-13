@@ -5,8 +5,17 @@ Write-Host "🔑 Aktualizacja klucza API Resend w Supabase" -ForegroundColor Cya
 Write-Host "==============================================" -ForegroundColor Cyan
 Write-Host ""
 
-# Nowy klucz API
-$NEW_API_KEY = "re_Gnup8gWT_iscYWzBPSfrwwD1yzGNaqgUA"
+# Nowy klucz API (podaj jako parametr lub ustaw RESEND_API_KEY w env)
+param(
+    [string]$NEW_API_KEY = $env:RESEND_API_KEY
+)
+
+if (-not $NEW_API_KEY) {
+    Write-Host "❌ Brak klucza API. Użycie:" -ForegroundColor Red
+    Write-Host "  .\\update-resend-api-key.ps1 -NEW_API_KEY re_xxx" -ForegroundColor Yellow
+    Write-Host "lub ustaw RESEND_API_KEY w środowisku." -ForegroundColor Yellow
+    exit 1
+}
 
 # Sprawdź czy Supabase CLI jest zainstalowane
 $supabaseCLI = Get-Command supabase -ErrorAction SilentlyContinue

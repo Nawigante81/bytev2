@@ -109,7 +109,7 @@ supabase functions logs notify-new-diagnosis
 ```powershell
 curl -X POST "https://glwqpjqvivzkbbvluxdd.supabase.co/functions/v1/notify-new-diagnosis" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndsbHhpY21hY21mem1xZG5vdmhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5NDA4MjcsImV4cCI6MjA4MDUxNjgyN30.9uV-EYGP8JvVuqmEPIRyTG7hCHPaKabc8MxnxzHl8ok" \
+  -H "Authorization: Bearer <SUPABASE_ANON_KEY>" \
   -d '{
     "record": {
       "id": "test-123",

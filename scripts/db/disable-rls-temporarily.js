@@ -7,21 +7,26 @@ try {
   if (fs.existsSync(envPath)) {
     const lines = fs.readFileSync(envPath, 'utf8').split(/\r?\n/);
     for (const line of lines) {
-      const m1 = line.match(/^VITE_SUPABASE_URL=(.*)$/);
-      if (m1 && !process.env.VITE_SUPABASE_URL) process.env.VITE_SUPABASE_URL = m1[1].trim();
-      const m2 = line.match(/^VITE_SUPABASE_ANON_KEY=(.*)$/);
-      if (m2 && !process.env.VITE_SUPABASE_ANON_KEY) process.env.VITE_SUPABASE_ANON_KEY = m2[1].trim();
-      const m3 = line.match(/^VITE_SUPABASE_SERVICE_ROLE_KEY=(.*)$/);
-      if (m3 && !process.env.VITE_SUPABASE_SERVICE_ROLE_KEY) process.env.VITE_SUPABASE_SERVICE_ROLE_KEY = m3[1].trim();
+      const url = line.match(/^(SUPABASE_URL|VITE_SUPABASE_URL)=(.*)$/);
+      if (url) {
+        const value = url[2].trim();
+        if (!process.env.SUPABASE_URL) process.env.SUPABASE_URL = value;
+        if (!process.env.VITE_SUPABASE_URL) process.env.VITE_SUPABASE_URL = value;
+      }
+
+      const serviceRole = line.match(/^(SUPABASE_SERVICE_ROLE_KEY|VITE_SUPABASE_SERVICE_ROLE_KEY)=(.*)$/);
+      if (serviceRole && !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        process.env.SUPABASE_SERVICE_ROLE_KEY = serviceRole[2].trim();
+      }
     }
   }
 } catch (e) {}
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL;
-const supabaseServiceKey = process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
+const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!supabaseUrl || !supabaseServiceKey) {
-  console.error('Missing VITE_SUPABASE_URL or VITE_SUPABASE_SERVICE_ROLE_KEY');
+  console.error('Missing SUPABASE_URL and/or SUPABASE_SERVICE_ROLE_KEY');
   process.exit(1);
 }
 

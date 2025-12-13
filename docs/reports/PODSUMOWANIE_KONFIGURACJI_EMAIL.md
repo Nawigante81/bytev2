@@ -8,7 +8,7 @@
 ## ✅ Wykonane zmiany
 
 ### 1. **Zaktualizowano klucz API Resend**
-- **Nowy klucz:** `re_Gnup8gWT_iscYWzBPSfrwwD1yzGNaqgUA`
+- **Nowy klucz:** `<RESEND_API_KEY>`
 - **Lokalizacja:** [`.env:9-10`](.env:9-10)
 
 ### 2. **Dodano Service Role Key**
@@ -59,7 +59,7 @@
 
 **Metoda A - Przez CLI:**
 ```bash
-supabase secrets set RESEND_API_KEY=re_Gnup8gWT_iscYWzBPSfrwwD1yzGNaqgUA --project-ref wllxicmacmfzmqdnovhp
+supabase secrets set RESEND_API_KEY=<RESEND_API_KEY> --project-ref wllxicmacmfzmqdnovhp
 supabase secrets set MAIL_FROM=onboarding@resend.dev --project-ref wllxicmacmfzmqdnovhp
 supabase secrets set ADMIN_EMAIL=serwis@byteclinic.pl --project-ref wllxicmacmfzmqdnovhp
 ```
@@ -68,7 +68,7 @@ supabase secrets set ADMIN_EMAIL=serwis@byteclinic.pl --project-ref wllxicmacmfz
 1. Otwórz: https://app.supabase.com/project/wllxicmacmfzmqdnovhp/settings/functions
 2. W sekcji "Secrets" dodaj:
    ```
-   RESEND_API_KEY = re_Gnup8gWT_iscYWzBPSfrwwD1yzGNaqgUA
+   RESEND_API_KEY = <RESEND_API_KEY>
    MAIL_FROM = onboarding@resend.dev
    ADMIN_EMAIL = serwis@byteclinic.pl
    ```

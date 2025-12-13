@@ -1,8 +1,14 @@
 # Test API Kontaktowego - ByteClinic
 # PowerShell Script
 
-$SUPABASE_URL = "https://wllxicmacmfzmqdnovhp.supabase.co"
-$SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndsbHhpY21hY21mem1xZG5vdmhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5NDA4MjcsImV4cCI6MjA4MDUxNjgyN30.9uV-EYGP8JvVuqmEPIRyTG7hCHPaKabc8MxnxzHl8ok"
+$SUPABASE_URL = $env:SUPABASE_URL
+if (-not $SUPABASE_URL) { $SUPABASE_URL = "https://wllxicmacmfzmqdnovhp.supabase.co" }
+$SUPABASE_KEY = $env:SUPABASE_KEY
+
+if (-not $SUPABASE_KEY) {
+  Write-Host "❌ Brak SUPABASE_KEY. Ustaw zmienna srodowiskowa SUPABASE_KEY i uruchom ponownie." -ForegroundColor Red
+  exit 1
+}
 
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "Test API Kontaktowego - ByteClinic" -ForegroundColor Cyan

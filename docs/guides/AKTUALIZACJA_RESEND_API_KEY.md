@@ -2,7 +2,7 @@
 
 **Data:** 2025-12-10  
 **Status:** ✅ Zaktualizowano lokalnie - wymaga aktualizacji w Supabase  
-**Nowy klucz:** `re_Gnup8gWT_iscYWzBPSfrwwD1yzGNaqgUA`
+**Nowy klucz:** `<RESEND_API_KEY>`
 
 ---
 
@@ -10,8 +10,7 @@
 
 ### 1. Plik `.env` zaktualizowany
 ```env
-VITE_EMAIL_API_KEY=re_Gnup8gWT_iscYWzBPSfrwwD1yzGNaqgUA
-RESEND_API_KEY=re_Gnup8gWT_iscYWzBPSfrwwD1yzGNaqgUA
+RESEND_API_KEY=<RESEND_API_KEY>
 ```
 
 ### 2. Utworzone skrypty pomocnicze
@@ -43,7 +42,7 @@ Edge functions w Supabase odczytują klucz API ze **Supabase Secrets**, nie z pl
 
 3. **Zaktualizuj wartość na:**
    ```
-   re_Gnup8gWT_iscYWzBPSfrwwD1yzGNaqgUA
+   <RESEND_API_KEY>
    ```
 
 4. **Kliknij "Save" lub "Update"**
@@ -57,7 +56,7 @@ Edge functions w Supabase odczytują klucz API ze **Supabase Secrets**, nie z pl
 supabase login
 
 # 2. Ustaw secret
-supabase secrets set RESEND_API_KEY=re_Gnup8gWT_iscYWzBPSfrwwD1yzGNaqgUA --project-ref wllxicmacmfzmqdnovhp
+supabase secrets set RESEND_API_KEY=<RESEND_API_KEY> --project-ref wllxicmacmfzmqdnovhp
 
 # 3. Sprawdź czy został ustawiony
 supabase secrets list --project-ref wllxicmacmfzmqdnovhp

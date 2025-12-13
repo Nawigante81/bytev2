@@ -148,28 +148,13 @@ const OrderModal = memo(({ isOpen, setIsOpen, service }) => {
 
     try {
       let svc = null;
-      const { id: serviceId } = await fetchServiceId();
+      const { id: serviceId, reason: serviceIdReason } = await fetchServiceId();
       if (serviceId) {
         svc = { id: serviceId };
       }
 
       if (!svc) {
-      // Use maybeSingle + limit(1) to avoid Postgrest 'JSON object requested, multiple (or no) rows returned'
-      // if the slug isn't unique or a row is missing. We still handle the not-found case below.
-      const { data: svcData, error: slugError } = await supabase
-        .from('service_catalog')
-        .select('id')
-        .eq('slug', service.slug)
-        .limit(1)
-        .maybeSingle();
-      
-      if (slugError) {
-        throw new Error(slugError.message);
-      }
-      if (!svcData) {
-        throw new Error('Nie znaleziono usługi (slug nie istnieje).');
-      }
-      svc = svcData;
+        throw new Error(serviceIdReason || 'Nie znaleziono uslugi w katalogu.');
       }
 
       const orderData = {

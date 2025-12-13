@@ -28,6 +28,13 @@ interface Notification {
   max_retries: number;
 }
 
+function isUuid(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+  );
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -116,7 +123,7 @@ Deno.serve(async (req: Request) => {
         console.log(`✅ Email sent successfully: ${notification.notification_id}`, resendData);
 
         // Zaktualizuj status na 'sent'
-        const { error: updateError } = await supabaseAdmin
+        const updateQuery = supabaseAdmin
           .from('notifications')
           .update({
             status: 'sent',
@@ -127,8 +134,11 @@ Deno.serve(async (req: Request) => {
               resend_id: resendData.id,
               sent_by_processor: true
             }
-          })
-          .eq('id', notification.id);
+          });
+
+        const { error: updateError } = isUuid(notification.id)
+          ? await updateQuery.eq('id', notification.id)
+          : await updateQuery.eq('notification_id', notification.notification_id);
 
         if (updateError) {
           console.error(`⚠️ Failed to update notification status:`, updateError);
@@ -145,15 +155,18 @@ Deno.serve(async (req: Request) => {
         console.error(`❌ Failed to send notification ${notification.notification_id}:`, error);
 
         // Zaktualizuj status na 'failed' i zwiększ retry_count
-        const { error: updateError } = await supabaseAdmin
+        const failUpdateQuery = supabaseAdmin
           .from('notifications')
           .update({
             status: notification.retry_count + 1 >= notification.max_retries ? 'failed' : 'pending',
             error_message: error.message || String(error),
             retry_count: notification.retry_count + 1,
             updated_at: new Date().toISOString()
-          })
-          .eq('id', notification.id);
+          });
+
+        const { error: updateError } = isUuid(notification.id)
+          ? await failUpdateQuery.eq('id', notification.id)
+          : await failUpdateQuery.eq('notification_id', notification.notification_id);
 
         if (updateError) {
           console.error(`⚠️ Failed to update notification status:`, updateError);

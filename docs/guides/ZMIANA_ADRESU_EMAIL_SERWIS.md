@@ -145,7 +145,7 @@ ADMIN_EMAIL = inny-adres@byteclinic.pl
 ## 🔗 Powiązane zmiany
 
 Razem z tą zmianą zostały również zaktualizowane:
-- ✅ Klucz API Resend: `re_Gnup8gWT_iscYWzBPSfrwwD1yzGNaqgUA`
+- ✅ Klucz API Resend: `<RESEND_API_KEY>`
 - ✅ System automatycznych powiadomień (triggers + edge functions)
 
 ---

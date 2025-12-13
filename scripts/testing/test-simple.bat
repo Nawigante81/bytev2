@@ -4,8 +4,12 @@ echo Test API Kontaktowego - ByteClinic
 echo ========================================
 echo.
 
-set SUPABASE_URL=https://wllxicmacmfzmqdnovhp.supabase.co
-set SUPABASE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndsbHhpY21hY21mem1xZG5vdmhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5NDA4MjcsImV4cCI6MjA4MDUxNjgyN30.9uV-EYGP8JvVuqmEPIRyTG7hCHPaKabc8MxnxzHl8ok
+if "%SUPABASE_URL%"=="" set SUPABASE_URL=https://wllxicmacmfzmqdnovhp.supabase.co
+if "%SUPABASE_KEY%"=="" (
+  echo Brak SUPABASE_KEY. Ustaw zmienna srodowiskowa SUPABASE_KEY i uruchom ponownie.
+  pause
+  exit /b 1
+)
 
 echo Testowanie: notify-new-diagnosis
 echo URL: %SUPABASE_URL%/functions/v1/notify-new-diagnosis

@@ -144,7 +144,7 @@ Jeśli znajdziesz skrypt:
 ```python
 import requests
 
-RESEND_API_KEY = "re_Gnup8gWT_iscYWzBPSfrwwD1yzGNaqgUA"
+RESEND_API_KEY = "<RESEND_API_KEY>"
 
 # 1. Wyślij email (otrzymasz email_id)
 response = requests.post(

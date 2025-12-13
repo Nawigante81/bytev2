@@ -34,7 +34,7 @@ Supabase Dashboard > Settings > Edge Functions > Secrets
 **Jeśli brak `RESEND_API_KEY`:**
 
 ```bash
-supabase secrets set RESEND_API_KEY=re_Gnup8gWT_iscYWzBPSfrwwD1yzGNaqgUA --project-ref wllxicmacmfzmqdnovhp
+supabase secrets set RESEND_API_KEY=<RESEND_API_KEY> --project-ref wllxicmacmfzmqdnovhp
 supabase secrets set MAIL_FROM=onboarding@resend.dev --project-ref wllxicmacmfzmqdnovhp
 supabase secrets set ADMIN_EMAIL=serwis@byteclinic.pl --project-ref wllxicmacmfzmqdnovhp
 ```
@@ -113,7 +113,7 @@ supabase secrets list --project-ref wllxicmacmfzmqdnovhp
 
 **Jeśli brak, ustaw:**
 ```bash
-supabase secrets set RESEND_API_KEY=re_Gnup8gWT_iscYWzBPSfrwwD1yzGNaqgUA --project-ref wllxicmacmfzmqdnovhp
+supabase secrets set RESEND_API_KEY=<RESEND_API_KEY> --project-ref wllxicmacmfzmqdnovhp
 ```
 
 ---
@@ -124,7 +124,7 @@ supabase secrets set RESEND_API_KEY=re_Gnup8gWT_iscYWzBPSfrwwD1yzGNaqgUA --proje
 ```bash
 curl -X POST "https://wllxicmacmfzmqdnovhp.supabase.co/functions/v1/notify-system" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndsbHhpY21hY21mem1xZG5vdmhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5NDA4MjcsImV4cCI6MjA4MDUxNjgyN30.9uV-EYGP8JvVuqmEPIRyTG7hCHPaKabc8MxnxzHl8ok" \
+  -H "Authorization: Bearer <SUPABASE_ANON_KEY>" \
   -d '{
     "template": "repair_request",
     "recipient": "test@example.com",
@@ -192,7 +192,7 @@ LIMIT 20;
 
 ```bash
 curl -X POST "https://wllxicmacmfzmqdnovhp.supabase.co/functions/v1/process-pending-notifications" \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndsbHhpY21hY21mem1xZG5vdmhwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NDk0MDgyNywiZXhwIjoyMDgwNTE2ODI3fQ.L9wOOdZeSQ7_ZyrOrN6VIYeKg8-gtsbh44gGypQNWeU"
+  -H "Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>"
 ```
 
 **Rezultat powinien pokazać:**
@@ -208,7 +208,7 @@ Wykonaj wszystko naraz:
 
 ```bash
 # 1. Ustaw wszystkie secrets
-supabase secrets set RESEND_API_KEY=re_Gnup8gWT_iscYWzBPSfrwwD1yzGNaqgUA --project-ref wllxicmacmfzmqdnovhp
+supabase secrets set RESEND_API_KEY=<RESEND_API_KEY> --project-ref wllxicmacmfzmqdnovhp
 supabase secrets set MAIL_FROM=onboarding@resend.dev --project-ref wllxicmacmfzmqdnovhp
 supabase secrets set ADMIN_EMAIL=serwis@byteclinic.pl --project-ref wllxicmacmfzmqdnovhp
 
@@ -222,7 +222,7 @@ sleep 30
 
 # 4. Test
 curl -X POST "https://wllxicmacmfzmqdnovhp.supabase.co/functions/v1/process-pending-notifications" \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndsbHhpY21hY21mem1xZG5vdmhwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NDk0MDgyNywiZXhwIjoyMDgwNTE2ODI3fQ.L9wOOdZeSQ7_ZyrOrN6VIYeKg8-gtsbh44gGypQNWeU"
+  -H "Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>"
 ```
 
 **Następnie w Supabase SQL Editor uruchom trigger:**
@@ -266,7 +266,7 @@ Supabase Dashboard > Logs > Postgres Logs
 
 **Fix:**
 ```bash
-supabase secrets set RESEND_API_KEY=re_Gnup8gWT_iscYWzBPSfrwwD1yzGNaqgUA --project-ref wllxicmacmfzmqdnovhp
+supabase secrets set RESEND_API_KEY=<RESEND_API_KEY> --project-ref wllxicmacmfzmqdnovhp
 ```
 
 ### Scenariusz B: Edge functions nie są wdrożone
@@ -337,13 +337,13 @@ supabase functions list --project-ref wllxicmacmfzmqdnovhp
 
 # 3. Test notify-system
 curl -X POST "https://wllxicmacmfzmqdnovhp.supabase.co/functions/v1/notify-system" \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndsbHhpY21hY21mem1xZG5vdmhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5NDA4MjcsImV4cCI6MjA4MDUxNjgyN30.9uV-EYGP8JvVuqmEPIRyTG7hCHPaKabc8MxnxzHl8ok" \
+  -H "Authorization: Bearer <SUPABASE_ANON_KEY>" \
   -H "Content-Type: application/json" \
   -d '{"template":"repair_request","recipient":"test@example.com","data":{"name":"Test"}}'
 
 # 4. Test process
 curl -X POST "https://wllxicmacmfzmqdnovhp.supabase.co/functions/v1/process-pending-notifications" \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndsbHhpY21hY21mem1xZG5vdmhwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NDk0MDgyNywiZXhwIjoyMDgwNTE2ODI3fQ.L9wOOdZeSQ7_ZyrOrN6VIYeKg8-gtsbh44gGypQNWeU"
+  -H "Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>"
 
 # 5. Sprawdź trigger
 # W SQL Editor: SELECT * FROM information_schema.triggers WHERE trigger_name = 'auto_process_notifications';

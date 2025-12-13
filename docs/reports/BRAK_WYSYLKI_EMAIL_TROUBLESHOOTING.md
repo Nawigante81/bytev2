@@ -31,14 +31,14 @@ Skrypt sprawdzi:
 **Rozwiązanie:**
 ```bash
 # Ustaw secret w Supabase
-supabase secrets set RESEND_API_KEY=re_Gnup8gWT_iscYWzBPSfrwwD1yzGNaqgUA --project-ref wllxicmacmfzmqdnovhp
+supabase secrets set RESEND_API_KEY=<RESEND_API_KEY> --project-ref wllxicmacmfzmqdnovhp
 ```
 
 **Lub przez Dashboard:**
 1. Otwórz: https://app.supabase.com/project/wllxicmacmfzmqdnovhp/settings/functions
 2. W sekcji "Secrets" dodaj:
    ```
-   RESEND_API_KEY = re_Gnup8gWT_iscYWzBPSfrwwD1yzGNaqgUA
+   RESEND_API_KEY = <RESEND_API_KEY>
    ```
 3. Zapisz i odczekaj 30 sekund (restart funkcji)
 
@@ -130,7 +130,7 @@ curl -X POST \
 **Test klucza:**
 ```bash
 curl -X POST https://api.resend.com/emails \
-  -H "Authorization: Bearer re_Gnup8gWT_iscYWzBPSfrwwD1yzGNaqgUA" \
+  -H "Authorization: Bearer <RESEND_API_KEY>" \
   -H "Content-Type: application/json" \
   -d '{
     "from": "onboarding@resend.dev",
@@ -201,7 +201,7 @@ Przejdź przez każdy punkt:
 
 ```bash
 # 1. Ustaw secrets
-supabase secrets set RESEND_API_KEY=re_Gnup8gWT_iscYWzBPSfrwwD1yzGNaqgUA --project-ref wllxicmacmfzmqdnovhp
+supabase secrets set RESEND_API_KEY=<RESEND_API_KEY> --project-ref wllxicmacmfzmqdnovhp
 supabase secrets set MAIL_FROM=onboarding@resend.dev --project-ref wllxicmacmfzmqdnovhp
 supabase secrets set ADMIN_EMAIL=serwis@byteclinic.pl --project-ref wllxicmacmfzmqdnovhp
 

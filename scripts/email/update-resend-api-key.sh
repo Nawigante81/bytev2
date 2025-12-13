@@ -7,8 +7,15 @@ echo "🔑 Aktualizacja klucza API Resend w Supabase"
 echo "=============================================="
 echo ""
 
-# Nowy klucz API
-NEW_API_KEY="re_Gnup8gWT_iscYWzBPSfrwwD1yzGNaqgUA"
+# Nowy klucz API (podaj jako argument lub ustaw RESEND_API_KEY w env)
+NEW_API_KEY="${1:-${RESEND_API_KEY:-}}"
+
+if [ -z "$NEW_API_KEY" ]; then
+    echo "? Brak klucza API. Użycie:"
+    echo "  bash update-resend-api-key.sh re_xxx"
+    echo "lub ustaw RESEND_API_KEY w środowisku."
+    exit 1
+fi
 
 # Sprawdź czy Supabase CLI jest zainstalowane
 if ! command -v supabase &> /dev/null; then

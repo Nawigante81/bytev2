@@ -26,11 +26,18 @@ const testCriticalFixes = async () => {
 
     console.log('🔄 Wysyłanie testowego zapytania do notify-system...');
     
-    const response = await fetch('https://wllxicmacmfzmqdnovhp.supabase.co/functions/v1/notify-system', {
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://wllxicmacmfzmqdnovhp.supabase.co';
+    const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+
+    if (!supabaseAnonKey) {
+      throw new Error('Missing SUPABASE_ANON_KEY/VITE_SUPABASE_ANON_KEY');
+    }
+
+    const response = await fetch(`${supabaseUrl}/functions/v1/notify-system`, {
       method: 'POST',
       headers: {
-        'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndsbHhpY21hY21mem1xZG5vdmhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5NDA4MjcsImV4cCI6MjA4MDUxNjgyN30.9uV-EYGP8JvVuqmEPIRyTG7hCHPaKabc8MxnxzHl8ok',
-        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndsbHhpY21hY21mem1xZG5vdmhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5NDA4MjcsImV4cCI6MjA4MDUxNjgyN30.9uV-EYGP8JvVuqmEPIRyTG7hCHPaKabc8MxnxzHl8ok',
+        'Authorization': `Bearer ${supabaseAnonKey}`,
+        'apikey': supabaseAnonKey,
         'Content-Type': 'application/json',
         'x-client-info': 'supabase-js-web/2.86.0'
       },

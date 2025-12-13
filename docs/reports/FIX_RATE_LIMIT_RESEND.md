@@ -289,7 +289,7 @@ Funkcja musi się zrestartować z nowym kodem.
 ### Krok 4: Przetestuj
 
 ```bash
-curl -X POST "https://wllxicmacmfzmqdnovhp.supabase.co/functions/v1/process-pending-notifications" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndsbHhpY21hY21mem1xZG5vdmhwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NDk0MDgyNywiZXhwIjoyMDgwNTE2ODI3fQ.L9wOOdZeSQ7_ZyrOrN6VIYeKg8-gtsbh44gGypQNWeU"
+curl -X POST "https://wllxicmacmfzmqdnovhp.supabase.co/functions/v1/process-pending-notifications" -H "Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>"
 ```
 
 **Oczekiwany wynik:** Wszystkie "sent", zero "failed" z rate limit!

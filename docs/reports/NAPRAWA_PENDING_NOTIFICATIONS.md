@@ -107,7 +107,7 @@ Jeśli jest wynik → **✅ Trigger utworzony!** Przejdź do Kroku 2.
 ```bash
 curl -X POST \
   "https://wllxicmacmfzmqdnovhp.supabase.co/functions/v1/process-pending-notifications" \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndsbHhpY21hY21mem1xZG5vdmhwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NDk0MDgyNywiZXhwIjoyMDgwNTE2ODI3fQ.L9wOOdZeSQ7_ZyrOrN6VIYeKg8-gtsbh44gGypQNWeU" \
+  -H "Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>" \
   -H "Content-Type: application/json"
 ```
 
@@ -134,7 +134,7 @@ supabase functions deploy process-pending-notifications --project-ref wllxicmacm
 ```bash
 curl -X POST \
   "https://wllxicmacmfzmqdnovhp.supabase.co/functions/v1/process-pending-notifications" \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndsbHhpY21hY21mem1xZG5vdmhwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NDk0MDgyNywiZXhwIjoyMDgwNTE2ODI3fQ.L9wOOdZeSQ7_ZyrOrN6VIYeKg8-gtsbh44gGypQNWeU"
+  -H "Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>"
 ```
 
 Jeśli status 200 → **✅ Funkcja wdrożona!** Przejdź do Kroku 3.
@@ -145,7 +145,7 @@ Jeśli status 200 → **✅ Funkcja wdrożona!** Przejdź do Kroku 3.
 
 **Przez CLI:**
 ```bash
-supabase secrets set RESEND_API_KEY=re_Gnup8gWT_iscYWzBPSfrwwD1yzGNaqgUA --project-ref wllxicmacmfzmqdnovhp
+supabase secrets set RESEND_API_KEY=<RESEND_API_KEY> --project-ref wllxicmacmfzmqdnovhp
 supabase secrets set MAIL_FROM=onboarding@resend.dev --project-ref wllxicmacmfzmqdnovhp
 supabase secrets set ADMIN_EMAIL=serwis@byteclinic.pl --project-ref wllxicmacmfzmqdnovhp
 ```
@@ -154,7 +154,7 @@ supabase secrets set ADMIN_EMAIL=serwis@byteclinic.pl --project-ref wllxicmacmfz
 1. Otwórz: https://app.supabase.com/project/wllxicmacmfzmqdnovhp/settings/functions
 2. W sekcji "Secrets" dodaj:
    ```
-   RESEND_API_KEY = re_Gnup8gWT_iscYWzBPSfrwwD1yzGNaqgUA
+   RESEND_API_KEY = <RESEND_API_KEY>
    MAIL_FROM = onboarding@resend.dev
    ADMIN_EMAIL = serwis@byteclinic.pl
    ```
@@ -171,7 +171,7 @@ supabase secrets set ADMIN_EMAIL=serwis@byteclinic.pl --project-ref wllxicmacmfz
 ```bash
 curl -X POST \
   "https://wllxicmacmfzmqdnovhp.supabase.co/functions/v1/process-pending-notifications" \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndsbHhpY21hY21mem1xZG5vdmhwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NDk0MDgyNywiZXhwIjoyMDgwNTE2ODI3fQ.L9wOOdZeSQ7_ZyrOrN6VIYeKg8-gtsbh44gGypQNWeU"
+  -H "Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>"
 ```
 
 **Oczekiwany rezultat:**
@@ -274,7 +274,7 @@ Wykonaj wszystko naraz:
 
 ```bash
 # 1. Ustaw secrets
-supabase secrets set RESEND_API_KEY=re_Gnup8gWT_iscYWzBPSfrwwD1yzGNaqgUA --project-ref wllxicmacmfzmqdnovhp
+supabase secrets set RESEND_API_KEY=<RESEND_API_KEY> --project-ref wllxicmacmfzmqdnovhp
 supabase secrets set MAIL_FROM=onboarding@resend.dev --project-ref wllxicmacmfzmqdnovhp
 supabase secrets set ADMIN_EMAIL=serwis@byteclinic.pl --project-ref wllxicmacmfzmqdnovhp
 
@@ -288,7 +288,7 @@ sleep 30
 # 4. Przetworz pending
 curl -X POST \
   "https://wllxicmacmfzmqdnovhp.supabase.co/functions/v1/process-pending-notifications" \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndsbHhpY21hY21mem1xZG5vdmhwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NDk0MDgyNywiZXhwIjoyMDgwNTE2ODI3fQ.L9wOOdZeSQ7_ZyrOrN6VIYeKg8-gtsbh44gGypQNWeU"
+  -H "Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>"
 ```
 
 **Następnie uruchom SQL z FIX A** (trigger) w Supabase SQL Editor.

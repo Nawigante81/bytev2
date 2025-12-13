@@ -2,10 +2,15 @@
 # Monitor systemu powiadomień ByteClinic - Optymalizowany dla uruchamiania co minutę
 # Wersja: 2.0 - z logowaniem i obsługą błędów
 
-SUPABASE_URL="https://wllxicmacmfzmqdnovhp.supabase.co"
-SERVICE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndsbHhpY21hY21mem1xZG5vdmhwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NDk0MDgyNywiZXhwIjoyMDgwNTE2ODI3fQ.L9wOOdZeSQ7_ZyrOrN6VIYeKg8-gtsbh44gGypQNWeU"
+SUPABASE_URL="${SUPABASE_URL:-}"
+SERVICE_KEY="${SUPABASE_SERVICE_ROLE_KEY:-${SERVICE_KEY:-}}"
 LOG_FILE="monitor-powiadomien.log"
 TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
+
+if [ -z "$SUPABASE_URL" ] || [ -z "$SERVICE_KEY" ]; then
+    echo "? Missing SUPABASE_URL and/or SUPABASE_SERVICE_ROLE_KEY" | tee -a "$LOG_FILE"
+    exit 1
+fi
 
 # Funkcja logowania
 log() {
