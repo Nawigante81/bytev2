@@ -15,6 +15,7 @@ import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/supabaseClient';
+import { validateEmail } from '@/lib/validators';
 import {
   Clock, Star, CheckCircle, AlertCircle, Phone, Mail,
   Calculator, Shield, Award, Info, ArrowRight, MapPin, Loader2
@@ -50,6 +51,14 @@ const Pricing = () => {
       toast({ variant: "destructive", title: "Uzupełnij dane", description: "Imię i e-mail są wymagane." });
       return;
     }
+
+    const trimmedEmail = contactEmail.trim();
+
+    if (!validateEmail(trimmedEmail)) {
+      toast({ variant: "destructive", title: "Nieprawidłowy e-mail", description: "Podaj poprawny adres e-mail." });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const quoteId = `QUOTE-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
@@ -61,7 +70,7 @@ const Pricing = () => {
         type: 'quote',
         source_page: 'cennik',
         customer_name: contactName.trim(),
-        customer_email: contactEmail.trim(),
+        customer_email: trimmedEmail,
         customer_phone: null,
         consent: true,
         device_type: contactService || null,
@@ -85,13 +94,13 @@ const Pricing = () => {
         },
         body: JSON.stringify({
           template: 'repair_request',
-          recipient: contactEmail,
+          recipient: trimmedEmail,
           sendAdminCopy: true, // ⚠️ KLUCZOWE - administrator dostanie kopię
           data: {
             id: quoteId,
             requestId: quoteId,
             name: contactName,
-            email: contactEmail,
+            email: trimmedEmail,
             phone: 'Nie podano',
             device: contactService || 'Wycena indywidualna',
             message: contactMsg || 'Zapytanie o wycenę z cennika',
