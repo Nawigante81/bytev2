@@ -15,6 +15,7 @@ import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/supabaseClient';
+import { checkEmailDeliveryStatus } from '@/lib/emailHelpers';
 import {
   Clock, Star, CheckCircle, AlertCircle, Phone, Mail,
   Calculator, Shield, Award, Info, ArrowRight, MapPin, Loader2
@@ -101,22 +102,10 @@ const Pricing = () => {
       });
       
       // Sprawdź czy powiadomienie zostało wysłane
-      let emailWarning = false;
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Błąd wysyłania powiadomienia:', errorText);
-        emailWarning = true;
-      } else {
-        // Sprawdź czy processor faktycznie wysłał emaile
-        const notifyResult = await response.json();
-        if (notifyResult.processor && notifyResult.processor.triggered && !notifyResult.processor.ok) {
-          console.error('Błąd procesora powiadomień:', notifyResult.processor.error);
-          emailWarning = true;
-        }
-      }
+      const emailStatus = await checkEmailDeliveryStatus(response);
 
       // Wyświetl odpowiedni komunikat
-      if (emailWarning) {
+      if (emailStatus.warning) {
         toast({ 
           title: "✅ Zapytanie zapisane", 
           description: "Twoje zapytanie zostało zapisane. Email potwierdzający może być opóźniony. Skontaktujemy się z Tobą w ciągu 24h." 

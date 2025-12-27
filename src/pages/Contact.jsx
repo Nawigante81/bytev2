@@ -12,6 +12,7 @@ import { Phone, Mail, MapPin, Clock, Send, AlertCircle } from 'lucide-react';
 import emailService from '@/services/emailService';
 import PageTransition from '@/components/PageTransition';
 import { supabase } from '@/lib/supabaseClient';
+import { checkEmailDeliveryStatus, showEmailStatusToast } from '@/lib/emailHelpers';
 
 // Kategorie zgłoszeń z priorytetami
 const TICKET_CATEGORIES = [
@@ -196,33 +197,10 @@ const handleSubmit = async (e) => {
     });
 
     // Sprawdź czy powiadomienie zostało wysłane
-    let emailWarning = false;
-    if (!notifyResponse.ok) {
-      const errorText = await notifyResponse.text();
-      console.error('Błąd wysyłania powiadomienia:', errorText);
-      emailWarning = true;
-    } else {
-      // Sprawdź czy processor faktycznie wysłał emaile
-      const notifyResult = await notifyResponse.json();
-      if (notifyResult.processor && notifyResult.processor.triggered && !notifyResult.processor.ok) {
-        console.error('Błąd procesora powiadomień:', notifyResult.processor.error);
-        emailWarning = true;
-      }
-    }
+    const emailStatus = await checkEmailDeliveryStatus(notifyResponse);
 
     // Wyświetl odpowiedni komunikat
-    if (emailWarning) {
-      toast({
-        title: "Zgłoszenie zapisane",
-        description: `Twoje zgłoszenie ${ticketId} zostało zapisane w systemie. Email potwierdzający może być opóźniony. Skontaktujemy się z Tobą w ciągu ${getEstimatedResponseTime(formData.priority)}.`,
-        variant: "default"
-      });
-    } else {
-      toast({
-        title: "Zgłoszenie wysłane!",
-        description: `Twoje zgłoszenie ${ticketId} zostało przekazane do zespołu. Otrzymasz odpowiedź w ciągu ${getEstimatedResponseTime(formData.priority)}.`,
-      });
-    }
+    showEmailStatusToast(toast, emailStatus.warning, ticketId, getEstimatedResponseTime(formData.priority));
 
     setFormData({
       name: '',
