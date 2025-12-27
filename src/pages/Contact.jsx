@@ -12,6 +12,7 @@ import { Phone, Mail, MapPin, Clock, Send, AlertCircle } from 'lucide-react';
 import emailService from '@/services/emailService';
 import PageTransition from '@/components/PageTransition';
 import { supabase } from '@/lib/supabaseClient';
+import { checkEmailDeliveryStatus, showEmailStatusToast } from '@/lib/emailHelpers';
 
 // Kategorie zgłoszeń z priorytetami
 const TICKET_CATEGORIES = [
@@ -195,15 +196,11 @@ const handleSubmit = async (e) => {
       })
     });
 
-    if (!notifyResponse.ok) {
-      console.error('Błąd wysyłania powiadomienia:', await notifyResponse.text());
-      // Nie przerywaj - zgłoszenie jest już w bazie
-    }
+    // Sprawdź czy powiadomienie zostało wysłane
+    const emailStatus = await checkEmailDeliveryStatus(notifyResponse);
 
-    toast({
-      title: "Zgłoszenie wysłane!",
-      description: `Twoje zgłoszenie ${ticketId} zostało przekazane do zespołu. Otrzymasz odpowiedź w ciągu ${getEstimatedResponseTime(formData.priority)}.`,
-    });
+    // Wyświetl odpowiedni komunikat
+    showEmailStatusToast(toast, emailStatus.warning, ticketId, getEstimatedResponseTime(formData.priority));
 
     setFormData({
       name: '',

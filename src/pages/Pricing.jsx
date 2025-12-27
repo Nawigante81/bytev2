@@ -15,6 +15,7 @@ import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/supabaseClient';
+import { checkEmailDeliveryStatus } from '@/lib/emailHelpers';
 import {
   Clock, Star, CheckCircle, AlertCircle, Phone, Mail,
   Calculator, Shield, Award, Info, ArrowRight, MapPin, Loader2
@@ -100,12 +101,22 @@ const Pricing = () => {
         }),
       });
       
-      if (!response.ok) {
-        console.error('Błąd wysyłania powiadomienia:', await response.text());
-        // Nie przerywaj - zapytanie jest już w bazie
-      }
+      // Sprawdź czy powiadomienie zostało wysłane
+      const emailStatus = await checkEmailDeliveryStatus(response);
 
-      toast({ title: "✅ Zapytanie wysłane", description: "Dziękujemy! Skontaktujemy się z Tobą w ciągu 24h." });
+      // Wyświetl odpowiedni komunikat
+      if (emailStatus.warning) {
+        toast({ 
+          title: "✅ Zapytanie zapisane", 
+          description: "Twoje zapytanie zostało zapisane. Email potwierdzający może być opóźniony. Skontaktujemy się z Tobą w ciągu 24h." 
+        });
+      } else {
+        toast({ 
+          title: "✅ Zapytanie wysłane", 
+          description: "Dziękujemy! Otrzymasz email potwierdzający. Skontaktujemy się z Tobą w ciągu 24h." 
+        });
+      }
+      
       setContactName(''); setContactEmail(''); setContactMsg(''); setContactService(''); setContactOpen(false);
     } catch (error) {
       console.error('Błąd wysyłania zapytania:', error);

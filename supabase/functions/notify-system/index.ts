@@ -4,7 +4,14 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const ADMIN_EMAIL = Deno.env.get('ADMIN_EMAIL') || 'serwis@byteclinic.pl';
+const FALLBACK_ADMIN_EMAIL = Deno.env.get('FALLBACK_ADMIN_EMAIL') || 'kontakt@byteclinic.pl'; // Fallback if primary admin email fails
 const PROCESS_PENDING_NOTIFICATIONS_URL = `${SUPABASE_URL}/functions/v1/process-pending-notifications`;
+
+// Szablony które wymagają fallback admin email (ważne zgłoszenia)
+const CRITICAL_TEMPLATES = ['repair_request', 'complaint', 'urgent_support'];
+
+console.log('🔧 notify-system starting with ADMIN_EMAIL:', ADMIN_EMAIL);
+console.log('🔧 Fallback admin email:', FALLBACK_ADMIN_EMAIL);
 
 const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false }
@@ -181,6 +188,7 @@ Deno.serve(async (req: Request) => {
 
     const shouldSendAdminCopy = body.sendAdminCopy || (!hasRawContent && renderer!.alwaysSendAdminCopy);
     if (shouldSendAdminCopy && primaryRecipient !== ADMIN_EMAIL) {
+      console.log('📧 Sending admin copy to:', ADMIN_EMAIL);
       notifications.push(await insertNotification({
         template: templateKey,
         recipientEmail: ADMIN_EMAIL,
@@ -188,8 +196,22 @@ Deno.serve(async (req: Request) => {
         subject: `[ADMIN] ${subject}`,
         html,
         data,
-        metadata: { ...metadata, original_recipient: primaryRecipient }
+        metadata: { ...metadata, original_recipient: primaryRecipient, admin_copy: true }
       }));
+      
+      // Opcjonalnie: wyślij również do fallback email dla krytycznych zgłoszeń
+      if (CRITICAL_TEMPLATES.includes(templateKey) && FALLBACK_ADMIN_EMAIL !== ADMIN_EMAIL) {
+        console.log('📧 Sending fallback admin copy to:', FALLBACK_ADMIN_EMAIL);
+        notifications.push(await insertNotification({
+          template: templateKey,
+          recipientEmail: FALLBACK_ADMIN_EMAIL,
+          recipientName: 'ByteClinic Admin (Fallback)',
+          subject: `[ADMIN-FALLBACK] ${subject}`,
+          html,
+          data,
+          metadata: { ...metadata, original_recipient: primaryRecipient, admin_copy: true, is_fallback: true }
+        }));
+      }
     }
 
     const processor = await maybeTriggerProcessor(
