@@ -195,15 +195,34 @@ const handleSubmit = async (e) => {
       })
     });
 
+    // Sprawdź czy powiadomienie zostało wysłane
+    let emailWarning = false;
     if (!notifyResponse.ok) {
-      console.error('Błąd wysyłania powiadomienia:', await notifyResponse.text());
-      // Nie przerywaj - zgłoszenie jest już w bazie
+      const errorText = await notifyResponse.text();
+      console.error('Błąd wysyłania powiadomienia:', errorText);
+      emailWarning = true;
+    } else {
+      // Sprawdź czy processor faktycznie wysłał emaile
+      const notifyResult = await notifyResponse.json();
+      if (notifyResult.processor && notifyResult.processor.triggered && !notifyResult.processor.ok) {
+        console.error('Błąd procesora powiadomień:', notifyResult.processor.error);
+        emailWarning = true;
+      }
     }
 
-    toast({
-      title: "Zgłoszenie wysłane!",
-      description: `Twoje zgłoszenie ${ticketId} zostało przekazane do zespołu. Otrzymasz odpowiedź w ciągu ${getEstimatedResponseTime(formData.priority)}.`,
-    });
+    // Wyświetl odpowiedni komunikat
+    if (emailWarning) {
+      toast({
+        title: "Zgłoszenie zapisane",
+        description: `Twoje zgłoszenie ${ticketId} zostało zapisane w systemie. Email potwierdzający może być opóźniony. Skontaktujemy się z Tobą w ciągu ${getEstimatedResponseTime(formData.priority)}.`,
+        variant: "default"
+      });
+    } else {
+      toast({
+        title: "Zgłoszenie wysłane!",
+        description: `Twoje zgłoszenie ${ticketId} zostało przekazane do zespołu. Otrzymasz odpowiedź w ciągu ${getEstimatedResponseTime(formData.priority)}.`,
+      });
+    }
 
     setFormData({
       name: '',

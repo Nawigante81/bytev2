@@ -100,12 +100,34 @@ const Pricing = () => {
         }),
       });
       
+      // Sprawdź czy powiadomienie zostało wysłane
+      let emailWarning = false;
       if (!response.ok) {
-        console.error('Błąd wysyłania powiadomienia:', await response.text());
-        // Nie przerywaj - zapytanie jest już w bazie
+        const errorText = await response.text();
+        console.error('Błąd wysyłania powiadomienia:', errorText);
+        emailWarning = true;
+      } else {
+        // Sprawdź czy processor faktycznie wysłał emaile
+        const notifyResult = await response.json();
+        if (notifyResult.processor && notifyResult.processor.triggered && !notifyResult.processor.ok) {
+          console.error('Błąd procesora powiadomień:', notifyResult.processor.error);
+          emailWarning = true;
+        }
       }
 
-      toast({ title: "✅ Zapytanie wysłane", description: "Dziękujemy! Skontaktujemy się z Tobą w ciągu 24h." });
+      // Wyświetl odpowiedni komunikat
+      if (emailWarning) {
+        toast({ 
+          title: "✅ Zapytanie zapisane", 
+          description: "Twoje zapytanie zostało zapisane. Email potwierdzający może być opóźniony. Skontaktujemy się z Tobą w ciągu 24h." 
+        });
+      } else {
+        toast({ 
+          title: "✅ Zapytanie wysłane", 
+          description: "Dziękujemy! Otrzymasz email potwierdzający. Skontaktujemy się z Tobą w ciągu 24h." 
+        });
+      }
+      
       setContactName(''); setContactEmail(''); setContactMsg(''); setContactService(''); setContactOpen(false);
     } catch (error) {
       console.error('Błąd wysyłania zapytania:', error);
