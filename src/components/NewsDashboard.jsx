@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { TrendingUp, Clock, Shield, Zap, Globe, Smartphone, Cpu, Brain, ExternalLink, Star } from 'lucide-react';
 
 const REFRESH_MS = 2 * 60 * 1000;
+const DATA_FRESHNESS_DAYS = 7; // Consider data fresh if updated within this many days
 
 function timeAgo(ts) {
   if (!ts) return '';
@@ -144,7 +145,7 @@ export default function NewsDashboard() {
   const isDataFresh = () => {
     if (!data?.updatedAt) return false;
     const daysSinceUpdate = (Date.now() - data.updatedAt) / (1000 * 60 * 60 * 24);
-    return daysSinceUpdate < 7; // Hide if older than 7 days
+    return daysSinceUpdate < DATA_FRESHNESS_DAYS;
   };
 
   const getTrendingNews = () => {
@@ -179,7 +180,8 @@ export default function NewsDashboard() {
     }[item.category] || 'text-gray-400';
 
     // Calculate article age
-    const articleAge = timeAgo(new Date(item.isoDate || item.pubDate).getTime());
+    const pubDateValue = new Date(item.isoDate || item.pubDate).getTime();
+    const articleAge = isNaN(pubDateValue) ? null : timeAgo(pubDateValue);
 
     return (
       <div className="group cursor-pointer rounded-lg border border-slate-700/50 bg-gradient-to-br from-slate-800/30 to-slate-900/30 hover:border-primary/50 transition-all duration-300 p-4">

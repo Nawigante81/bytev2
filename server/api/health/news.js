@@ -16,9 +16,11 @@ export default async function handler(req, res) {
     const itAge = Math.floor((now - itData.updatedAt) / 1000 / 60);
     
     const maxAge = 120; // 2 hours
-    const status = (techAge < maxAge && itAge < maxAge) ? 'healthy' : 'stale';
+    const isFresh = (techAge < maxAge && itAge < maxAge);
+    const status = isFresh ? 'healthy' : 'stale';
+    const httpStatus = isFresh ? 200 : 503; // Use 503 for degraded service
     
-    return res.status(status === 'healthy' ? 200 : 500).json({
+    return res.status(httpStatus).json({
       status,
       tech_news: {
         age_minutes: techAge,

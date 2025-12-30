@@ -13,8 +13,22 @@ echo "[$TIMESTAMP] Starting news refresh..." >> "$LOG_DIR/cron.log"
 # Przejdź do katalogu projektu
 cd "$PROJECT_DIR" || exit 1
 
-# Automatycznie wykryj ścieżkę do node
-NODE_BIN=$(which node 2>/dev/null || echo "/usr/bin/node")
+# Automatycznie wykryj ścieżkę do node z fallback
+NODE_BIN=$(which node 2>/dev/null)
+if [ -z "$NODE_BIN" ]; then
+  # Try common paths
+  for path in /usr/local/bin/node /usr/bin/node /opt/homebrew/bin/node; do
+    if [ -x "$path" ]; then
+      NODE_BIN="$path"
+      break
+    fi
+  done
+fi
+
+if [ -z "$NODE_BIN" ]; then
+  echo "[$TIMESTAMP] ❌ Error: node binary not found" >> "$LOG_DIR/cron.log"
+  exit 1
+fi
 
 # Odśwież tech news
 echo "[$TIMESTAMP] Fetching tech news..." >> "$LOG_DIR/cron.log"
