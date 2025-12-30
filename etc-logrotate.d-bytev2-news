@@ -1,0 +1,12 @@
+# Log rotation configuration for bytev2 news refresh
+# To install: sudo cp etc-logrotate.d-bytev2-news /etc/logrotate.d/bytev2-news
+# Then adjust the path and user/group as needed
+
+/var/www/bytev2/logs/*.log {
+    daily
+    rotate 7
+    compress
+    missingok
+    notifempty
+    create 0644 www-data www-data
+}

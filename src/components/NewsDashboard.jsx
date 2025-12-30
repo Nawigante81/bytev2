@@ -141,6 +141,12 @@ export default function NewsDashboard() {
     return savedItems.some(saved => saved.link === item.link);
   }, [savedItems]);
 
+  const isDataFresh = () => {
+    if (!data?.updatedAt) return false;
+    const daysSinceUpdate = (Date.now() - data.updatedAt) / (1000 * 60 * 60 * 24);
+    return daysSinceUpdate < 7; // Hide if older than 7 days
+  };
+
   const getTrendingNews = () => {
     const allItems = [];
     Object.entries(data.sources).forEach(([key, source]) => {
@@ -172,6 +178,9 @@ export default function NewsDashboard() {
       'Tech': 'text-cyan-400'
     }[item.category] || 'text-gray-400';
 
+    // Calculate article age
+    const articleAge = timeAgo(new Date(item.isoDate || item.pubDate).getTime());
+
     return (
       <div className="group cursor-pointer rounded-lg border border-slate-700/50 bg-gradient-to-br from-slate-800/30 to-slate-900/30 hover:border-primary/50 transition-all duration-300 p-4">
         <div className="flex items-start justify-between gap-3">
@@ -182,46 +191,42 @@ export default function NewsDashboard() {
                 <span className={`text-xs font-medium uppercase tracking-wide ${categoryColor}`}>
                   {item.category}
                 </span>
-                {item.priority && (
-                  <span className="text-xs text-slate-500">
-                    Score: {item.priority}
-                  </span>
+                <span className="text-xs text-slate-500">•</span>
+                <span className="text-xs text-slate-500">{item.source || item.sourceName}</span>
+                {articleAge && (
+                  <>
+                    <span className="text-xs text-slate-500">•</span>
+                    <span className="text-xs text-slate-500">{articleAge}</span>
+                  </>
                 )}
               </div>
             )}
             <h3 className="font-semibold text-white leading-tight line-clamp-3 group-hover:text-primary transition-colors text-base">
               {item.title}
             </h3>
-            <div className="flex items-center justify-between mt-3">
-              <div className="flex items-center gap-2 text-slate-400 text-xs">
-                <span>{item.sourceName || item.source}</span>
-                <span>•</span>
-                <span>{timeAgo(item.isoDate || item.pubDate)}</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    toggleSaved(item);
-                  }}
-                  className={`p-1 rounded transition-colors ${
-                    isSaved(item) 
-                      ? 'text-yellow-400 hover:text-yellow-300' 
-                      : 'text-slate-500 hover:text-yellow-400'
-                  }`}
-                >
-                  <Star className={`w-4 h-4 ${isSaved(item) ? 'fill-current' : ''}`} />
-                </button>
-                <a
-                  href={item.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-slate-500 hover:text-primary transition-colors"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                </a>
-              </div>
+            <div className="flex items-center justify-end gap-1 mt-3">
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  toggleSaved(item);
+                }}
+                className={`p-1 rounded transition-colors ${
+                  isSaved(item) 
+                    ? 'text-yellow-400 hover:text-yellow-300' 
+                    : 'text-slate-500 hover:text-yellow-400'
+                }`}
+              >
+                <Star className={`w-4 h-4 ${isSaved(item) ? 'fill-current' : ''}`} />
+              </button>
+              <a
+                href={item.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-slate-500 hover:text-primary transition-colors"
+              >
+                <ExternalLink className="w-4 h-4" />
+              </a>
             </div>
           </div>
         </div>
@@ -244,42 +249,45 @@ export default function NewsDashboard() {
   }
 
   const trendingNews = getTrendingNews();
+  const dataIsFresh = isDataFresh();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24 md:pb-6">
 
 
-      {/* Live Ticker */}
-      <div className="bg-gradient-to-r from-slate-900/80 to-slate-800/80 border border-slate-700/50 rounded-lg p-4 backdrop-blur-sm">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-            <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-            LIVE
-          </h3>
-          <div className="text-sm text-slate-400">
-            Ostatnia aktualizacja: {timeAgo(data.updatedAt) || '—'}
+      {/* Live Ticker - Only show when data is fresh */}
+      {dataIsFresh && (
+        <div className="bg-gradient-to-r from-slate-900/80 to-slate-800/80 border border-slate-700/50 rounded-lg p-4 backdrop-blur-sm">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+              <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+              LIVE
+            </h3>
+            <div className="text-sm text-slate-400">
+              Ostatnia aktualizacja: {timeAgo(data.updatedAt) || '—'}
+            </div>
+          </div>
+          <div className="overflow-hidden">
+            {liveTicker.length > 0 && (
+              <div className="animate-pulse">
+                <p className="text-white font-medium">
+                  {liveTicker[tickerIndex]?.title || 'Ładowanie...'}
+                </p>
+                <p className="text-slate-400 text-sm mt-1">
+                  {liveTicker[tickerIndex]?.source} • {liveTicker[tickerIndex]?.category}
+                </p>
+              </div>
+            )}
           </div>
         </div>
-        <div className="overflow-hidden">
-          {liveTicker.length > 0 && (
-            <div className="animate-pulse">
-              <p className="text-white font-medium">
-                {liveTicker[tickerIndex]?.title || 'Ładowanie...'}
-              </p>
-              <p className="text-slate-400 text-sm mt-1">
-                {liveTicker[tickerIndex]?.source} • {liveTicker[tickerIndex]?.category}
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
+      )}
 
       {/* Trending News */}
       <div>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-semibold text-white flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-green-400" />
-            TRENDING
+            {dataIsFresh ? 'TRENDING' : 'OSTATNIE'}
           </h3>
           <span className="text-sm text-slate-400">
             {trendingNews.length} hottest stories
