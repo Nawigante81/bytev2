@@ -156,6 +156,7 @@ const handleSubmit = async (e) => {
       customer_name: formData.name.trim(),
       customer_email: formData.email.trim(),
       customer_phone: formData.phone?.trim() || null,
+      subject: formData.subject.trim(),
       consent: true,
       device_type: formData.deviceType || null,
       device_model: null,
